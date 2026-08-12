@@ -1,0 +1,115 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Header from "../../components/Header.astro";
+import Footer from "../../components/Footer.astro";
+import ArticleCard from "../../components/ArticleCard.astro";
+import { getCategory } from "../../data/categories";
+import { articles } from "../../data/sampleArticles";
+import { getArticleBySlug, getRelatedArticles } from "../../lib/articles";
+
+export function getStaticPaths() {
+  return articles.map((article) => ({
+    params: { category: article.categorySlug, slug: article.slug },
+  }));
+}
+
+const { category: categorySlug, slug } = Astro.params;
+// getStaticPaths above generates one route per article in the same source
+// array, so a matching article is guaranteed to exist here.
+const article = getArticleBySlug(categorySlug!, slug!)!;
+
+const category = getCategory(article.categorySlug);
+const related = getRelatedArticles(article);
+const publishedLabel = article.publishedAt.toLocaleDateString("en-US", {
+  weekday: "long",
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+---
+
+<BaseLayout title={article.title} description={article.excerpt}>
+  <Header />
+  <main class="w-full pt-16 min-h-screen">
+    <article class="max-w-container mx-auto px-margin-mobile md:px-margin-desktop py-12 w-full">
+      <nav class="text-metadata text-on-surface-variant mb-6" aria-label="Breadcrumb">
+        <a href="/" class="hover:text-primary transition-colors">Home</a>
+        <span class="mx-2">/</span>
+        <a href={`/${article.categorySlug}`} class="hover:text-primary transition-colors">{category?.name}</a>
+        <span class="mx-2">/</span>
+        <span class="text-on-surface line-clamp-1">{article.title}</span>
+      </nav>
+
+      <div class="max-w-3xl mx-auto">
+        {category && (
+          <a href={`/${category.slug}`} class="text-label-caps text-primary uppercase tracking-widest mb-4 block">
+            {category.name}
+          </a>
+        )}
+        <h1 class="text-display-lg text-on-surface mb-6 leading-tight">{article.title}</h1>
+        <p class="text-body-lg text-on-surface-variant mb-6">{article.excerpt}</p>
+        <div class="flex flex-wrap items-center gap-4 text-on-surface-variant text-metadata pb-8 mb-8 border-b border-outline-variant">
+          <span class="flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[16px]">edit</span>
+            {article.author}
+          </span>
+          <span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+          <span class="flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[16px]">schedule</span>
+            {publishedLabel}
+          </span>
+          <span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+          <span class="flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[16px]">menu_book</span>
+            {article.readTime}
+          </span>
+        </div>
+      </div>
+
+      <div class="max-w-3xl mx-auto mb-10">
+        <figure>
+          <img
+            src={article.imageUrl}
+            alt={article.imageAlt}
+            class="w-full aspect-[16/9] object-cover rounded-xl"
+          />
+          <figcaption class="text-metadata text-on-surface-variant mt-2">{article.imageAlt}</figcaption>
+        </figure>
+      </div>
+
+      <div class="max-w-3xl mx-auto text-body-lg text-on-surface space-y-6">
+        {article.content.map((paragraph) => <p>{paragraph}</p>)}
+      </div>
+
+      <div class="max-w-3xl mx-auto flex flex-wrap gap-2 mt-10">
+        {
+          article.tags.map((tag) => (
+            <span class="px-3 py-1 bg-surface-container text-metadata text-on-surface-variant rounded-sm">{tag}</span>
+          ))
+        }
+      </div>
+
+      <div class="max-w-3xl mx-auto flex items-center gap-4 mt-10 pt-8 border-t border-outline-variant">
+        <span class="text-label-caps text-on-surface-variant uppercase">Share</span>
+        <span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary">share</span>
+        <span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary">alternate_email</span>
+      </div>
+
+      {
+        related.length > 0 && (
+          <div class="mt-section-gap">
+            <div class="flex items-center justify-between pb-4 mb-8 border-b-2 border-primary">
+              <h2 class="text-headline-lg text-on-surface">Related Stories</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {related.map((item) => (
+                <ArticleCard article={item} />
+              ))}
+            </div>
+          </div>
+        )
+      }
+    </article>
+  </main>
+  <Footer />
+</BaseLayout>

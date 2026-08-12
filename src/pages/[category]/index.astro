@@ -1,0 +1,48 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Header from "../../components/Header.astro";
+import Footer from "../../components/Footer.astro";
+import ArticleCard from "../../components/ArticleCard.astro";
+import { categories } from "../../data/categories";
+import { getArticlesByCategory } from "../../lib/articles";
+
+export function getStaticPaths() {
+  return categories.map((category) => ({
+    params: { category: category.slug },
+    props: { category },
+  }));
+}
+
+const { category } = Astro.props;
+const categoryArticles = getArticlesByCategory(category.slug);
+---
+
+<BaseLayout title={category.name} description={`Latest ${category.name} news from MyManipur.`}>
+  <Header />
+  <main class="w-full pt-16 min-h-screen">
+    <section class="max-w-container mx-auto px-margin-mobile md:px-margin-desktop py-12 w-full">
+      <nav class="text-metadata text-on-surface-variant mb-6" aria-label="Breadcrumb">
+        <a href="/" class="hover:text-primary transition-colors">Home</a>
+        <span class="mx-2">/</span>
+        <span class="text-on-surface">{category.name}</span>
+      </nav>
+
+      <div class="flex items-center justify-between pb-4 mb-8 border-b-2 border-primary">
+        <h1 class="text-headline-lg text-on-surface">{category.name}</h1>
+      </div>
+
+      {
+        categoryArticles.length === 0 ? (
+          <p class="text-body-lg text-on-surface-variant py-12">
+            No {category.name} stories published yet — check back soon.
+          </p>
+        ) : (
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {categoryArticles.map((article) => <ArticleCard article={article} />)}
+          </div>
+        )
+      }
+    </section>
+  </main>
+  <Footer />
+</BaseLayout>

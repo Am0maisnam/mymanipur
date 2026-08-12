@@ -6,13 +6,20 @@ import BreakingNewsTicker from "../components/BreakingNewsTicker.astro";
 import HeroArticle from "../components/HeroArticle.astro";
 import ArticleCard from "../components/ArticleCard.astro";
 import LiveUpdatesFeed from "../components/LiveUpdatesFeed.astro";
-import { featuredArticle, topStories, liveUpdates, breakingNews } from "../data/sampleArticles";
+import { liveUpdates } from "../data/sampleArticles";
+import { getFeaturedArticle, getLatestArticles, getBreakingArticle, articleHref } from "../lib/articles";
+
+const featuredArticle = getFeaturedArticle()!;
+const topStories = getLatestArticles(10)
+  .filter((a) => a.slug !== featuredArticle.slug)
+  .slice(0, 2);
+const breakingArticle = getBreakingArticle();
 ---
 
 <BaseLayout title="Home">
   <Header />
   <main class="w-full pt-16 min-h-screen">
-    <BreakingNewsTicker text={breakingNews.text} href={breakingNews.href} />
+    {breakingArticle && <BreakingNewsTicker text={breakingArticle.title} href={articleHref(breakingArticle)} />}
 
     <HeroArticle article={featuredArticle} />
 
