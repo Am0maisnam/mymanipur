@@ -1,0 +1,54 @@
+---
+const year = new Date().getFullYear();
+---
+
+<footer class="w-full bg-surface-container-low border-t border-outline-variant pt-section-gap pb-12">
+  <div class="max-w-container mx-auto px-margin-mobile md:px-margin-desktop">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-gutter mb-12">
+      <div class="col-span-1 md:col-span-2">
+        <a href="/" class="flex items-center gap-2 mb-4">
+          <img src="/images/logo.png" alt="MyManipur" class="h-8 w-auto grayscale opacity-70" />
+        </a>
+        <p class="text-body-md text-on-surface-variant max-w-sm mb-6">
+          Delivering accurate, timely news across the Imphal Valley and the surrounding hills with editorial
+          integrity.
+        </p>
+        <div class="flex gap-4">
+          <span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary">public</span>
+          <span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary">share</span>
+          <span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary">alternate_email</span>
+        </div>
+      </div>
+      <div>
+        <h4 class="text-label-caps text-primary mb-6">SECTIONS</h4>
+        <ul class="space-y-3">
+          <li><a href="#" class="text-metadata text-on-surface-variant hover:text-primary transition-colors">Local News</a></li>
+          <li><a href="#" class="text-metadata text-on-surface-variant hover:text-primary transition-colors">Editorial</a></li>
+          <li><a href="#" class="text-metadata text-on-surface-variant hover:text-primary transition-colors">Public Notices</a></li>
+          <li><a href="#" class="text-metadata text-on-surface-variant hover:text-primary transition-colors">Weather</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="text-label-caps text-primary mb-6">NEWSLETTER</h4>
+        <p class="text-metadata text-on-surface-variant mb-4">The Morning Briefing, delivered to your inbox daily.</p>
+        <div class="flex border-b border-primary py-2">
+          <input
+            class="bg-transparent w-full outline-none text-metadata"
+            placeholder="Email address"
+            type="email"
+            name="email"
+          />
+          <button type="button" class="text-label-caps hover:opacity-70">SIGNUP</button>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col md:flex-row justify-between items-center gap-4 pt-12 border-t border-outline-variant">
+      <span class="text-metadata text-on-surface-variant">© {year} MyManipur News. All rights reserved.</span>
+      <nav class="flex gap-8">
+        <a class="text-metadata text-on-surface-variant hover:underline" href="#">Terms</a>
+        <a class="text-metadata text-on-surface-variant hover:underline" href="#">Privacy</a>
+        <a class="text-metadata text-on-surface-variant hover:underline" href="#">Contact</a>
+      </nav>
+    </div>
+  </div>
+</footer>

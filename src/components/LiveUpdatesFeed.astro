@@ -1,0 +1,53 @@
+---
+import type { LiveUpdate } from "../data/sampleArticles";
+
+interface Props {
+  updates: LiveUpdate[];
+}
+
+const { updates } = Astro.props;
+---
+
+<aside class="lg:col-span-4 mt-12 lg:mt-0 flex flex-col">
+  <div class="sticky top-24 bg-surface-container-lowest p-6 rounded-xl shadow-md border border-outline-variant/30 flex flex-col max-h-[calc(100vh-8rem)]">
+    <div class="flex items-center gap-3 mb-6 pb-4 border-b border-outline-variant/50">
+      <div class="w-3 h-3 rounded-full bg-accent animate-pulse"></div>
+      <h3 class="text-label-caps text-on-surface uppercase tracking-widest">Live Updates</h3>
+    </div>
+    <div class="flex-1 overflow-y-auto pr-4 space-y-6 custom-scrollbar">
+      {
+        updates.map((update, i) => (
+          <div class="group relative pl-6">
+            <div class="absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full bg-primary/40 group-hover:bg-primary transition-colors" />
+            {i < updates.length - 1 && (
+              <div class="absolute left-[2.5px] top-3 bottom-[-24px] w-px bg-outline-variant/30" />
+            )}
+            <div class="text-[11px] text-on-surface-variant font-medium tracking-wider mb-1">{update.time}</div>
+            <p class="text-body-md text-on-surface group-hover:text-primary transition-colors leading-snug">
+              {update.text}
+            </p>
+          </div>
+        ))
+      }
+    </div>
+    <button
+      type="button"
+      class="w-full mt-6 py-3 px-4 bg-transparent border border-primary text-primary text-label-caps hover:bg-primary hover:text-on-primary transition-colors rounded-md tracking-wider"
+    >
+      Load More Updates
+    </button>
+  </div>
+</aside>
+
+<style>
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--color-outline-variant);
+    border-radius: 4px;
+  }
+</style>

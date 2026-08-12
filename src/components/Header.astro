@@ -1,0 +1,47 @@
+---
+import { navItems } from "../data/categories";
+
+const today = new Date().toLocaleDateString("en-US", {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+});
+---
+
+<header class="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-md border-b border-outline-variant">
+  <div class="h-16 max-w-container mx-auto px-margin-mobile md:px-margin-desktop flex items-center justify-between gap-gutter">
+    <a href="/" class="flex items-center gap-2 shrink-0">
+      <img src="/images/logo.png" alt="MyManipur" class="h-9 md:h-10 w-auto object-contain" />
+    </a>
+
+    <nav class="hidden lg:flex items-center gap-6">
+      {
+        navItems.map((item) => (
+          <a
+            href={item.path}
+            class="font-sans text-label-caps text-on-surface-variant hover:text-primary transition-colors uppercase"
+          >
+            {item.label}
+          </a>
+        ))
+      }
+    </nav>
+
+    <div class="flex items-center gap-6">
+      <div class="hidden md:flex flex-col items-end">
+        <span class="font-sans text-[10px] text-on-surface-variant uppercase tracking-widest">Regional Edition</span>
+        <span class="font-sans text-metadata text-on-surface">{today}</span>
+      </div>
+      <a href="/search" aria-label="Search" class="p-2 hover:bg-surface-container rounded-full transition-colors">
+        <span class="material-symbols-outlined text-on-surface">search</span>
+      </a>
+      <a
+        href="/admin/login"
+        aria-label="Admin login"
+        class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"
+      >
+        <span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
+      </a>
+    </div>
+  </div>
+</header>

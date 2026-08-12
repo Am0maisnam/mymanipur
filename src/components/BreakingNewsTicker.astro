@@ -1,0 +1,16 @@
+---
+interface Props {
+  text: string;
+  href: string;
+}
+
+const { text, href } = Astro.props;
+---
+
+<div class="w-full bg-accent text-on-accent">
+  <div class="max-w-container mx-auto px-margin-mobile md:px-margin-desktop py-2.5 flex items-center gap-3">
+    <span class="font-sans text-label-caps uppercase tracking-wider shrink-0">Breaking</span>
+    <span class="hidden sm:block w-1 h-1 rounded-full bg-on-accent/60 shrink-0"></span>
+    <a href={href} class="font-sans text-metadata hover:underline underline-offset-4 truncate">{text}</a>
+  </div>
+</div>

@@ -1,0 +1,55 @@
+---
+import type { SampleArticle } from "../data/sampleArticles";
+import { getCategory } from "../data/categories";
+
+interface Props {
+  article: SampleArticle;
+}
+
+const { article } = Astro.props;
+const category = getCategory(article.categorySlug);
+const href = `/${article.categorySlug}/${article.slug}`;
+---
+
+<section class="max-w-container mx-auto px-margin-mobile md:px-margin-desktop py-12 w-full">
+  <a href={href} class="relative group block overflow-hidden rounded-xl bg-surface-container shadow-xl transition-all duration-300">
+    <div class="aspect-[16/9] md:aspect-[2/1] w-full relative">
+      <img
+        src={article.imageUrl}
+        alt={article.imageAlt}
+        class="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-90"
+      />
+      <div class="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/40 to-transparent"></div>
+      <div class="absolute bottom-0 left-0 p-6 md:p-12 w-full md:w-3/4">
+        <span class="inline-block px-3 py-1 bg-primary text-on-primary text-label-caps mb-4 uppercase tracking-wider rounded-sm shadow-sm">
+          Featured
+        </span>
+        <h1 class="text-display-lg text-on-primary mb-4 leading-tight group-hover:underline decoration-on-primary/50 underline-offset-8 transition-all">
+          {article.title}
+        </h1>
+        <p class="text-body-lg text-on-primary/90 mb-6 line-clamp-2 md:line-clamp-3">
+          {article.excerpt}
+        </p>
+        <div class="flex items-center gap-4 text-on-primary/80 text-metadata">
+          <span class="flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[16px]">edit</span>
+            {article.author}
+          </span>
+          <span class="w-1 h-1 rounded-full bg-on-primary/50"></span>
+          <span class="flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[16px]">schedule</span>
+            {article.publishedLabel}
+          </span>
+          {
+            category && (
+              <>
+                <span class="w-1 h-1 rounded-full bg-on-primary/50" />
+                <span>{category.name}</span>
+              </>
+            )
+          }
+        </div>
+      </div>
+    </div>
+  </a>
+</section>

@@ -1,0 +1,55 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import BreakingNewsTicker from "../components/BreakingNewsTicker.astro";
+import HeroArticle from "../components/HeroArticle.astro";
+import ArticleCard from "../components/ArticleCard.astro";
+import LiveUpdatesFeed from "../components/LiveUpdatesFeed.astro";
+import { featuredArticle, topStories, liveUpdates, breakingNews } from "../data/sampleArticles";
+---
+
+<BaseLayout title="Home">
+  <Header />
+  <main class="w-full pt-16 min-h-screen">
+    <BreakingNewsTicker text={breakingNews.text} href={breakingNews.href} />
+
+    <HeroArticle article={featuredArticle} />
+
+    <section class="max-w-container mx-auto px-margin-mobile md:px-margin-desktop py-section-gap w-full">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+        <div class="lg:col-span-8 flex flex-col gap-12">
+          <div class="flex items-center justify-between pb-4 border-b-2 border-primary">
+            <h2 class="text-headline-lg text-on-surface">Top Stories</h2>
+            <a href="#" class="text-metadata text-primary hover:underline underline-offset-4 flex items-center gap-1">
+              View All
+              <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+            </a>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {topStories.map((article) => <ArticleCard article={article} />)}
+          </div>
+
+          <div class="w-full mt-8 p-8 bg-surface-container-low rounded-xl flex items-center gap-8 group cursor-pointer hover:bg-surface-container transition-colors duration-300">
+            <div class="w-24 h-24 shrink-0 flex items-center justify-center rounded-full bg-primary text-on-primary">
+              <span class="material-symbols-outlined text-[48px] transition-transform duration-500 group-hover:rotate-12">
+                download
+              </span>
+            </div>
+            <div>
+              <h4 class="text-headline-md text-on-surface mb-2">Download the Monthly Civic Report</h4>
+              <p class="text-body-md text-on-surface-variant max-w-xl">
+                Deep dive into the latest policy changes affecting infrastructure and local businesses across the
+                valley.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <LiveUpdatesFeed updates={liveUpdates} />
+      </div>
+    </section>
+  </main>
+  <Footer />
+</BaseLayout>
