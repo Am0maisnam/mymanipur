@@ -27,7 +27,7 @@ const today = new Date().toLocaleDateString("en-US", {
       }
     </nav>
 
-    <div class="flex items-center gap-6">
+    <div class="flex items-center gap-2 md:gap-6">
       <div class="hidden md:flex flex-col items-end">
         <span class="font-sans text-[10px] text-on-surface-variant uppercase tracking-widest">Regional Edition</span>
         <span class="font-sans text-metadata text-on-surface">{today}</span>
@@ -42,6 +42,55 @@ const today = new Date().toLocaleDateString("en-US", {
       >
         <span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
       </a>
+      <button
+        id="nav-toggle"
+        type="button"
+        aria-label="Open menu"
+        aria-expanded="false"
+        aria-controls="mobile-nav"
+        class="lg:hidden p-2 hover:bg-surface-container rounded-full transition-colors"
+      >
+        <span id="nav-toggle-icon" class="material-symbols-outlined text-on-surface">menu</span>
+      </button>
     </div>
   </div>
+
+  <nav
+    id="mobile-nav"
+    class="hidden lg:hidden bg-surface border-t border-outline-variant"
+  >
+    <div class="flex flex-col px-margin-mobile py-4">
+      {
+        navItems.map((item) => (
+          <a
+            href={item.path}
+            class="font-sans text-label-caps text-on-surface-variant hover:text-primary transition-colors uppercase py-3 border-b border-outline-variant/50 last:border-b-0"
+          >
+            {item.label}
+          </a>
+        ))
+      }
+    </div>
+  </nav>
 </header>
+
+<script>
+  const toggle = document.getElementById("nav-toggle")!;
+  const icon = document.getElementById("nav-toggle-icon")!;
+  const panel = document.getElementById("mobile-nav")!;
+
+  toggle.addEventListener("click", () => {
+    const isOpen = !panel.classList.contains("hidden");
+    panel.classList.toggle("hidden", isOpen);
+    toggle.setAttribute("aria-expanded", String(!isOpen));
+    icon.textContent = isOpen ? "menu" : "close";
+  });
+
+  panel.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", () => {
+      panel.classList.add("hidden");
+      toggle.setAttribute("aria-expanded", "false");
+      icon.textContent = "menu";
+    });
+  });
+</script>

@@ -1,6 +1,7 @@
 ---
 import type { SampleArticle } from "../data/sampleArticles";
 import { getCategory } from "../data/categories";
+import { articleHref } from "../lib/articles";
 
 interface Props {
   article: SampleArticle;
@@ -8,7 +9,7 @@ interface Props {
 
 const { article } = Astro.props;
 const category = getCategory(article.categorySlug);
-const href = `/${article.categorySlug}/${article.slug}`;
+const href = articleHref(article);
 ---
 
 <article class="group flex flex-col gap-4">

@@ -1,0 +1,97 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import ArticleCard from "../components/ArticleCard.astro";
+import { getCategory } from "../data/categories";
+import { getLatestArticles } from "../lib/articles";
+
+// No backend/D1 exists yet (Phase 4), so search runs client-side over this
+// small placeholder dataset — every article is rendered up front and the
+// script below shows/hides cards as the visitor types.
+const allArticles = getLatestArticles(100);
+---
+
+<BaseLayout title="Search" description="Search MyManipur articles.">
+  <Header />
+  <main class="w-full pt-16 min-h-screen">
+    <section class="max-w-container mx-auto px-margin-mobile md:px-margin-desktop py-12 w-full">
+      <h1 class="text-headline-lg text-on-surface mb-8">Search</h1>
+
+      <div class="max-w-2xl mb-12">
+        <label for="search-input" class="text-label-caps text-on-surface-variant uppercase block mb-2">
+          Search articles
+        </label>
+        <div class="flex items-center border-b border-primary py-2 gap-2">
+          <span class="material-symbols-outlined text-on-surface-variant">search</span>
+          <input
+            id="search-input"
+            type="search"
+            placeholder="Search by headline, category, or tag…"
+            class="bg-transparent w-full outline-none text-body-md"
+            autocomplete="off"
+          />
+        </div>
+      </div>
+
+      <p id="search-status" class="text-metadata text-on-surface-variant mb-6"></p>
+
+      <div id="search-results" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {
+          allArticles.map((article) => {
+            const category = getCategory(article.categorySlug);
+            const haystack = `${article.title} ${article.excerpt} ${category?.name ?? ""} ${article.tags.join(" ")}`.toLowerCase();
+            return (
+              <div data-search={haystack} data-result>
+                <ArticleCard article={article} />
+              </div>
+            );
+          })
+        }
+      </div>
+
+      <p id="search-empty" class="hidden text-body-lg text-on-surface-variant py-12">
+        No articles match your search.
+      </p>
+    </section>
+  </main>
+  <Footer />
+
+  <script>
+    const input = document.getElementById("search-input") as HTMLInputElement;
+    const status = document.getElementById("search-status")!;
+    const empty = document.getElementById("search-empty")!;
+    const results = document.querySelectorAll<HTMLElement>("[data-result]");
+
+    function runFilter(query: string) {
+      const q = query.trim().toLowerCase();
+      let visibleCount = 0;
+
+      results.forEach((el) => {
+        const matches = q === "" ? false : (el.dataset.search ?? "").includes(q);
+        el.classList.toggle("hidden", !matches);
+        if (matches) visibleCount++;
+      });
+
+      if (q === "") {
+        status.textContent = "Start typing to search articles.";
+        empty.classList.add("hidden");
+      } else {
+        status.textContent = `${visibleCount} result${visibleCount === 1 ? "" : "s"} for "${query}"`;
+        empty.classList.toggle("hidden", visibleCount > 0);
+      }
+    }
+
+    results.forEach((el) => el.classList.add("hidden"));
+    runFilter("");
+
+    input.addEventListener("input", () => runFilter(input.value));
+
+    const params = new URLSearchParams(window.location.search);
+    const initialQuery = params.get("q");
+    if (initialQuery) {
+      input.value = initialQuery;
+      runFilter(initialQuery);
+    }
+  </script>
+</BaseLayout>

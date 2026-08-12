@@ -1,6 +1,7 @@
 ---
 import type { SampleArticle } from "../data/sampleArticles";
 import { getCategory } from "../data/categories";
+import { articleHref, formatPublished } from "../lib/articles";
 
 interface Props {
   article: SampleArticle;
@@ -8,7 +9,7 @@ interface Props {
 
 const { article } = Astro.props;
 const category = getCategory(article.categorySlug);
-const href = `/${article.categorySlug}/${article.slug}`;
+const href = articleHref(article);
 ---
 
 <section class="max-w-container mx-auto px-margin-mobile md:px-margin-desktop py-12 w-full">
@@ -38,7 +39,7 @@ const href = `/${article.categorySlug}/${article.slug}`;
           <span class="w-1 h-1 rounded-full bg-on-primary/50"></span>
           <span class="flex items-center gap-1.5">
             <span class="material-symbols-outlined text-[16px]">schedule</span>
-            {article.publishedLabel}
+            {formatPublished(article.publishedAt)}
           </span>
           {
             category && (
