@@ -1,0 +1,96 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { env } from "cloudflare:workers";
+import { countUsers, createUser } from "../../lib/users";
+import { hashPassword } from "../../lib/auth";
+
+const db = env.DB;
+
+const existingUsers = await countUsers(db);
+if (existingUsers > 0) {
+  return Astro.redirect("/admin/login");
+}
+
+let error: string | null = null;
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  const email = String(form.get("email") ?? "").trim().toLowerCase();
+  const password = String(form.get("password") ?? "");
+  const confirmPassword = String(form.get("confirmPassword") ?? "");
+
+  if (!email || !email.includes("@")) {
+    error = "Enter a valid email address.";
+  } else if (password.length < 10) {
+    error = "Password must be at least 10 characters.";
+  } else if (password !== confirmPassword) {
+    error = "Passwords don't match.";
+  } else {
+    // Re-check right before writing, in case of a race with a concurrent setup attempt.
+    if ((await countUsers(db)) > 0) {
+      return Astro.redirect("/admin/login");
+    }
+    const passwordHash = await hashPassword(password);
+    const user = await createUser(db, email, passwordHash, "admin");
+    Astro.session?.set("userId", user.id);
+    Astro.session?.set("userEmail", user.email);
+    return Astro.redirect("/admin");
+  }
+}
+---
+
+<BaseLayout title="Set Up Admin Account">
+  <main class="min-h-screen flex items-center justify-center px-margin-mobile bg-surface">
+    <div class="w-full max-w-sm">
+      <h1 class="text-headline-lg text-on-surface mb-2">Set Up MyManipur Admin</h1>
+      <p class="text-body-md text-on-surface-variant mb-8">
+        No admin account exists yet. Create the first one — this runs once.
+      </p>
+
+      {error && <p class="text-body-md text-error mb-6">{error}</p>}
+
+      <form method="POST" class="flex flex-col gap-6">
+        <div>
+          <label for="email" class="text-label-caps text-on-surface-variant uppercase block mb-2">Email</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            class="w-full bg-transparent border-b border-primary py-2 outline-none text-body-md"
+          />
+        </div>
+        <div>
+          <label for="password" class="text-label-caps text-on-surface-variant uppercase block mb-2">Password</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            required
+            minlength="10"
+            class="w-full bg-transparent border-b border-primary py-2 outline-none text-body-md"
+          />
+        </div>
+        <div>
+          <label for="confirmPassword" class="text-label-caps text-on-surface-variant uppercase block mb-2">
+            Confirm Password
+          </label>
+          <input
+            id="confirmPassword"
+            name="confirmPassword"
+            type="password"
+            required
+            minlength="10"
+            class="w-full bg-transparent border-b border-primary py-2 outline-none text-body-md"
+          />
+        </div>
+        <button
+          type="submit"
+          class="mt-2 py-3 bg-primary text-on-primary text-label-caps uppercase tracking-wider rounded-md hover:opacity-90 transition-opacity"
+        >
+          Create Admin Account
+        </button>
+      </form>
+    </div>
+  </main>
+</BaseLayout>

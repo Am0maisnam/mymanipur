@@ -1,0 +1,222 @@
+---
+import type { Category } from "../../lib/categories";
+import type { Author } from "../../lib/authors";
+import type { ArticleForEdit } from "../../lib/articles";
+
+interface Props {
+  categories: Category[];
+  authors: Author[];
+  article?: ArticleForEdit;
+  error?: string | null;
+}
+
+const { categories, authors, article, error } = Astro.props;
+
+function fieldId(name: string) {
+  return `field-${name}`;
+}
+---
+
+{error && <p class="text-body-md text-error mb-6">{error}</p>}
+
+<form method="POST" class="flex flex-col gap-8 max-w-3xl">
+  <div>
+    <label for={fieldId("title")} class="text-label-caps text-on-surface-variant uppercase block mb-2">Title</label>
+    <input
+      id={fieldId("title")}
+      name="title"
+      type="text"
+      required
+      value={article?.title}
+      class="w-full bg-transparent border-b border-primary py-2 outline-none text-body-lg"
+    />
+  </div>
+
+  <div>
+    <label for={fieldId("slug")} class="text-label-caps text-on-surface-variant uppercase block mb-2">
+      Slug <span class="normal-case text-on-surface-variant/70">(leave blank to auto-generate from title)</span>
+    </label>
+    <input
+      id={fieldId("slug")}
+      name="slug"
+      type="text"
+      value={article?.slug}
+      placeholder="auto-generated-from-title"
+      class="w-full bg-transparent border-b border-outline-variant py-2 outline-none text-body-md"
+    />
+  </div>
+
+  <div class="grid grid-cols-2 gap-6">
+    <div>
+      <label for={fieldId("categoryId")} class="text-label-caps text-on-surface-variant uppercase block mb-2">Category</label>
+      <select
+        id={fieldId("categoryId")}
+        name="categoryId"
+        required
+        class="w-full bg-transparent border-b border-primary py-2 outline-none text-body-md"
+      >
+        {categories.map((c) => (
+          <option value={c.id} selected={article?.categoryId === c.id}>{c.name}</option>
+        ))}
+      </select>
+    </div>
+    <div>
+      <label for={fieldId("authorId")} class="text-label-caps text-on-surface-variant uppercase block mb-2">
+        Author <a href="/admin/authors" class="normal-case text-primary">(manage)</a>
+      </label>
+      <select
+        id={fieldId("authorId")}
+        name="authorId"
+        required
+        class="w-full bg-transparent border-b border-primary py-2 outline-none text-body-md"
+      >
+        {authors.map((a) => (
+          <option value={a.id} selected={article?.authorId === a.id}>{a.name}</option>
+        ))}
+      </select>
+    </div>
+  </div>
+
+  <div>
+    <label for={fieldId("excerpt")} class="text-label-caps text-on-surface-variant uppercase block mb-2">Excerpt</label>
+    <textarea
+      id={fieldId("excerpt")}
+      name="excerpt"
+      required
+      rows="2"
+      class="w-full bg-transparent border-b border-primary py-2 outline-none text-body-md resize-y"
+    >{article?.excerpt}</textarea>
+  </div>
+
+  <div>
+    <label for={fieldId("content")} class="text-label-caps text-on-surface-variant uppercase block mb-2">
+      Body <span class="normal-case text-on-surface-variant/70">(separate paragraphs with a blank line)</span>
+    </label>
+    <textarea
+      id={fieldId("content")}
+      name="content"
+      required
+      rows="12"
+      class="w-full bg-transparent border border-outline-variant rounded-md p-3 outline-none text-body-md resize-y"
+    >{article?.contentText}</textarea>
+  </div>
+
+  <div class="grid grid-cols-2 gap-6">
+    <div>
+      <label for={fieldId("featuredImageUrl")} class="text-label-caps text-on-surface-variant uppercase block mb-2">
+        Featured Image URL
+      </label>
+      <input
+        id={fieldId("featuredImageUrl")}
+        name="featuredImageUrl"
+        type="text"
+        value={article?.featuredImageUrl ?? ""}
+        placeholder="/images/example.png"
+        class="w-full bg-transparent border-b border-outline-variant py-2 outline-none text-body-md"
+      />
+    </div>
+    <div>
+      <label for={fieldId("imageCaption")} class="text-label-caps text-on-surface-variant uppercase block mb-2">
+        Image Caption
+      </label>
+      <input
+        id={fieldId("imageCaption")}
+        name="imageCaption"
+        type="text"
+        value={article?.imageCaption ?? ""}
+        class="w-full bg-transparent border-b border-outline-variant py-2 outline-none text-body-md"
+      />
+    </div>
+  </div>
+
+  <div>
+    <label for={fieldId("tags")} class="text-label-caps text-on-surface-variant uppercase block mb-2">
+      Tags <span class="normal-case text-on-surface-variant/70">(comma-separated)</span>
+    </label>
+    <input
+      id={fieldId("tags")}
+      name="tags"
+      type="text"
+      value={article?.tags.join(", ") ?? ""}
+      class="w-full bg-transparent border-b border-outline-variant py-2 outline-none text-body-md"
+    />
+  </div>
+
+  <div class="border-l-4 border-accent bg-accent/5 rounded-r-lg p-6">
+    <label for={fieldId("localImpactSummary")} class="text-label-caps text-accent uppercase block mb-2">
+      How This Affects Manipur <span class="normal-case text-on-surface-variant/70">(optional — for national/world stories)</span>
+    </label>
+    <textarea
+      id={fieldId("localImpactSummary")}
+      name="localImpactSummary"
+      rows="3"
+      class="w-full bg-transparent border-b border-accent/40 py-2 outline-none text-body-md resize-y"
+    >{article?.localImpactSummary ?? ""}</textarea>
+  </div>
+
+  <details class="border border-outline-variant rounded-lg p-4">
+    <summary class="text-label-caps text-on-surface-variant uppercase cursor-pointer">SEO (optional)</summary>
+    <div class="mt-4 flex flex-col gap-4">
+      <div>
+        <label for={fieldId("seoTitle")} class="text-label-caps text-on-surface-variant uppercase block mb-2">SEO Title</label>
+        <input
+          id={fieldId("seoTitle")}
+          name="seoTitle"
+          type="text"
+          value={article?.seoTitle ?? ""}
+          class="w-full bg-transparent border-b border-outline-variant py-2 outline-none text-body-md"
+        />
+      </div>
+      <div>
+        <label for={fieldId("seoDescription")} class="text-label-caps text-on-surface-variant uppercase block mb-2">
+          SEO Description
+        </label>
+        <textarea
+          id={fieldId("seoDescription")}
+          name="seoDescription"
+          rows="2"
+          class="w-full bg-transparent border-b border-outline-variant py-2 outline-none text-body-md resize-y"
+        >{article?.seoDescription ?? ""}</textarea>
+      </div>
+    </div>
+  </details>
+
+  <div class="flex items-center gap-8">
+    <label class="flex items-center gap-2 text-body-md text-on-surface">
+      <input type="checkbox" name="isFeatured" checked={article?.isFeatured} />
+      Featured
+    </label>
+    <label class="flex items-center gap-2 text-body-md text-on-surface">
+      <input type="checkbox" name="isBreaking" checked={article?.isBreaking} />
+      Breaking
+    </label>
+  </div>
+
+  <div>
+    <label for={fieldId("status")} class="text-label-caps text-on-surface-variant uppercase block mb-2">Status</label>
+    <select
+      id={fieldId("status")}
+      name="status"
+      class="bg-transparent border-b border-primary py-2 outline-none text-body-md"
+    >
+      <option value="draft" selected={!article || article.status === "draft"}>Draft</option>
+      <option value="published" selected={article?.status === "published"}>Published</option>
+      <option value="archived" selected={article?.status === "archived"}>Archived</option>
+    </select>
+  </div>
+
+  <div class="flex gap-4">
+    <button
+      type="submit"
+      class="px-6 py-3 bg-primary text-on-primary text-label-caps uppercase tracking-wider rounded-md hover:opacity-90 transition-opacity"
+    >
+      Save
+    </button>
+    <a
+      href="/admin/articles"
+      class="px-6 py-3 border border-outline-variant text-on-surface text-label-caps uppercase tracking-wider rounded-md hover:bg-surface-container transition-colors"
+    >
+      Cancel
+    </a>
+  </div>
+</form>

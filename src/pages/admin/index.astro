@@ -1,0 +1,54 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { env } from "cloudflare:workers";
+import { getArticleStats, getAllArticlesAdmin } from "../../lib/articles";
+
+const db = env.DB;
+const stats = await getArticleStats(db);
+const recent = (await getAllArticlesAdmin(db)).slice(0, 5);
+---
+
+<AdminLayout title="Dashboard">
+  <h1 class="text-headline-lg text-on-surface mb-8">Dashboard</h1>
+
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+    <div class="p-6 border border-outline-variant rounded-lg">
+      <p class="text-label-caps text-on-surface-variant uppercase mb-2">Total Articles</p>
+      <p class="text-display-lg text-on-surface">{stats.total}</p>
+    </div>
+    <div class="p-6 border border-outline-variant rounded-lg">
+      <p class="text-label-caps text-on-surface-variant uppercase mb-2">Published</p>
+      <p class="text-display-lg text-on-surface">{stats.published}</p>
+    </div>
+    <div class="p-6 border border-outline-variant rounded-lg">
+      <p class="text-label-caps text-on-surface-variant uppercase mb-2">Drafts</p>
+      <p class="text-display-lg text-on-surface">{stats.drafts}</p>
+    </div>
+    <div class="p-6 border border-accent rounded-lg">
+      <p class="text-label-caps text-accent uppercase mb-2">Breaking</p>
+      <p class="text-display-lg text-on-surface">{stats.breaking}</p>
+    </div>
+  </div>
+
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="text-headline-md text-on-surface">Recently Updated</h2>
+    <a href="/admin/articles/new" class="px-4 py-2 bg-primary text-on-primary text-label-caps uppercase rounded-md hover:opacity-90 transition-opacity">
+      New Article
+    </a>
+  </div>
+
+  <div class="border border-outline-variant rounded-lg divide-y divide-outline-variant">
+    {
+      recent.map((article) => (
+        <a href={`/admin/articles/${article.id}/edit`} class="flex items-center justify-between p-4 hover:bg-surface-container-low transition-colors">
+          <div>
+            <p class="text-body-md text-on-surface">{article.title}</p>
+            <p class="text-metadata text-on-surface-variant">{article.categoryName} · {article.authorName}</p>
+          </div>
+          <span class="text-metadata text-on-surface-variant uppercase">{article.status}</span>
+        </a>
+      ))
+    }
+    {recent.length === 0 && <p class="p-4 text-body-md text-on-surface-variant">No articles yet.</p>}
+  </div>
+</AdminLayout>

@@ -1,0 +1,70 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { env } from "cloudflare:workers";
+import { countUsers, getUserByEmail } from "../../lib/users";
+import { verifyPassword } from "../../lib/auth";
+
+const db = env.DB;
+
+if ((await countUsers(db)) === 0) {
+  return Astro.redirect("/admin/setup");
+}
+
+let error: string | null = null;
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  const email = String(form.get("email") ?? "").trim().toLowerCase();
+  const password = String(form.get("password") ?? "");
+
+  const user = await getUserByEmail(db, email);
+  const valid = user ? await verifyPassword(password, user.passwordHash) : false;
+
+  if (!user || !valid) {
+    error = "Incorrect email or password.";
+  } else {
+    Astro.session?.set("userId", user.id);
+    Astro.session?.set("userEmail", user.email);
+    return Astro.redirect("/admin");
+  }
+}
+---
+
+<BaseLayout title="Admin Login">
+  <main class="min-h-screen flex items-center justify-center px-margin-mobile bg-surface">
+    <div class="w-full max-w-sm">
+      <h1 class="text-headline-lg text-on-surface mb-8">Admin Login</h1>
+
+      {error && <p class="text-body-md text-error mb-6">{error}</p>}
+
+      <form method="POST" class="flex flex-col gap-6">
+        <div>
+          <label for="email" class="text-label-caps text-on-surface-variant uppercase block mb-2">Email</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            class="w-full bg-transparent border-b border-primary py-2 outline-none text-body-md"
+          />
+        </div>
+        <div>
+          <label for="password" class="text-label-caps text-on-surface-variant uppercase block mb-2">Password</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            required
+            class="w-full bg-transparent border-b border-primary py-2 outline-none text-body-md"
+          />
+        </div>
+        <button
+          type="submit"
+          class="mt-2 py-3 bg-primary text-on-primary text-label-caps uppercase tracking-wider rounded-md hover:opacity-90 transition-opacity"
+        >
+          Log In
+        </button>
+      </form>
+    </div>
+  </main>
+</BaseLayout>

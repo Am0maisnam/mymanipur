@@ -1,0 +1,7 @@
+---
+if (Astro.request.method === "POST") {
+  Astro.session?.destroy();
+  return Astro.redirect("/admin/login");
+}
+return Astro.redirect("/admin");
+---
