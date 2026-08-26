@@ -1,0 +1,60 @@
+---
+import AdminLayout from "../../../layouts/AdminLayout.astro";
+import { env } from "cloudflare:workers";
+import { getAllArticlesAdmin, archiveArticle } from "../../../lib/articles";
+
+const db = env.DB;
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  const id = Number(form.get("id"));
+  const action = form.get("action");
+  if (action === "archive" && id) {
+    await archiveArticle(db, id);
+  }
+  return Astro.redirect("/admin/articles");
+}
+
+const articles = await getAllArticlesAdmin(db);
+---
+
+<AdminLayout title="Articles">
+  <div class="flex items-center justify-between mb-8">
+    <h1 class="text-headline-lg text-on-surface">Articles</h1>
+    <a href="/admin/articles/new" class="px-4 py-2 bg-primary text-on-primary text-label-caps uppercase rounded-md hover:opacity-90 transition-opacity">
+      New Article
+    </a>
+  </div>
+
+  <div class="border border-outline-variant rounded-lg divide-y divide-outline-variant">
+    {
+      articles.map((article) => (
+        <div class="flex items-center justify-between p-4">
+          <div class="min-w-0">
+            <a href={`/admin/articles/${article.id}/edit`} class="text-body-md text-on-surface hover:text-primary transition-colors">
+              {article.title}
+            </a>
+            <p class="text-metadata text-on-surface-variant">
+              {article.categoryName} · {article.authorName}
+              {article.isBreaking && <span class="text-accent"> · Breaking</span>}
+              {article.isFeatured && <span> · Featured</span>}
+            </p>
+          </div>
+          <div class="flex items-center gap-4 shrink-0 ml-4">
+            <span class="text-metadata text-on-surface-variant uppercase">{article.status}</span>
+            {article.status !== "archived" && (
+              <form method="POST">
+                <input type="hidden" name="id" value={article.id} />
+                <input type="hidden" name="action" value="archive" />
+                <button type="submit" class="text-metadata text-error hover:underline">
+                  Archive
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      ))
+    }
+    {articles.length === 0 && <p class="p-4 text-body-md text-on-surface-variant">No articles yet.</p>}
+  </div>
+</AdminLayout>

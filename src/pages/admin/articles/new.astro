@@ -1,0 +1,60 @@
+---
+import AdminLayout from "../../../layouts/AdminLayout.astro";
+import ArticleForm from "../../../components/admin/ArticleForm.astro";
+import { env } from "cloudflare:workers";
+import { getCategories } from "../../../lib/categories";
+import { getAuthors } from "../../../lib/authors";
+import { createArticle, type ArticleInput } from "../../../lib/articles";
+import { plainTextToHtml, slugify } from "../../../lib/content";
+
+const db = env.DB;
+let error: string | null = null;
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  const title = String(form.get("title") ?? "").trim();
+  const slugInput = String(form.get("slug") ?? "").trim();
+  const slug = slugInput ? slugify(slugInput) : slugify(title);
+  const excerpt = String(form.get("excerpt") ?? "").trim();
+  const content = String(form.get("content") ?? "").trim();
+  const categoryId = Number(form.get("categoryId"));
+  const authorId = Number(form.get("authorId"));
+  const status = String(form.get("status") ?? "draft") as ArticleInput["status"];
+  const tags = String(form.get("tags") ?? "")
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+  if (!title || !slug || !excerpt || !content || !categoryId || !authorId) {
+    error = "Title, excerpt, body, category, and author are all required.";
+  } else {
+    const input: ArticleInput = {
+      title,
+      slug,
+      excerpt,
+      contentHtml: plainTextToHtml(content),
+      featuredImageUrl: String(form.get("featuredImageUrl") ?? "").trim() || null,
+      imageCaption: String(form.get("imageCaption") ?? "").trim() || null,
+      authorId,
+      categoryId,
+      status,
+      isFeatured: form.get("isFeatured") === "on",
+      isBreaking: form.get("isBreaking") === "on",
+      seoTitle: String(form.get("seoTitle") ?? "").trim() || null,
+      seoDescription: String(form.get("seoDescription") ?? "").trim() || null,
+      localImpactSummary: String(form.get("localImpactSummary") ?? "").trim() || null,
+      tags,
+    };
+    const id = await createArticle(db, input);
+    return Astro.redirect(`/admin/articles/${id}/edit`);
+  }
+}
+
+const categories = await getCategories(db);
+const authors = await getAuthors(db);
+---
+
+<AdminLayout title="New Article">
+  <h1 class="text-headline-lg text-on-surface mb-8">New Article</h1>
+  <ArticleForm categories={categories} authors={authors} error={error} />
+</AdminLayout>

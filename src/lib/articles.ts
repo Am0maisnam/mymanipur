@@ -162,6 +162,264 @@ export async function searchArticles(db: D1Database, query: string, limit = 20):
   return results.map(mapRow);
 }
 
+// --- Admin-facing functions (all statuses, no auth check — callers must be behind /admin) ---
+
+export interface AdminArticleListItem {
+  id: number;
+  title: string;
+  slug: string;
+  categorySlug: string;
+  categoryName: string;
+  authorName: string;
+  status: string;
+  isFeatured: boolean;
+  isBreaking: boolean;
+  publishedAt: string | null;
+}
+
+export async function getAllArticlesAdmin(db: D1Database): Promise<AdminArticleListItem[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT a.id, a.title, a.slug, c.slug AS categorySlug, c.name AS categoryName, au.name AS authorName,
+              a.status, a.is_featured AS isFeatured, a.is_breaking AS isBreaking, a.published_at AS publishedAt
+       FROM articles a
+       JOIN authors au ON au.id = a.author_id
+       JOIN categories c ON c.id = a.category_id
+       ORDER BY a.updated_at DESC`
+    )
+    .all<{
+      id: number;
+      title: string;
+      slug: string;
+      categorySlug: string;
+      categoryName: string;
+      authorName: string;
+      status: string;
+      isFeatured: number;
+      isBreaking: number;
+      publishedAt: string | null;
+    }>();
+  return results.map((r) => ({
+    ...r,
+    isFeatured: r.isFeatured === 1,
+    isBreaking: r.isBreaking === 1,
+  }));
+}
+
+export interface ArticleStats {
+  total: number;
+  published: number;
+  drafts: number;
+  breaking: number;
+}
+
+export async function getArticleStats(db: D1Database): Promise<ArticleStats> {
+  const row = await db
+    .prepare(
+      `SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN status = 'published' THEN 1 ELSE 0 END) AS published,
+        SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) AS drafts,
+        SUM(CASE WHEN is_breaking = 1 AND status = 'published' THEN 1 ELSE 0 END) AS breaking
+       FROM articles`
+    )
+    .first<{ total: number; published: number; drafts: number; breaking: number }>();
+  return {
+    total: row?.total ?? 0,
+    published: row?.published ?? 0,
+    drafts: row?.drafts ?? 0,
+    breaking: row?.breaking ?? 0,
+  };
+}
+
+export interface ArticleForEdit {
+  id: number;
+  title: string;
+  slug: string;
+  excerpt: string;
+  contentText: string;
+  featuredImageUrl: string | null;
+  imageCaption: string | null;
+  authorId: number;
+  categoryId: number;
+  status: string;
+  isFeatured: boolean;
+  isBreaking: boolean;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  localImpactSummary: string | null;
+  tags: string[];
+}
+
+export async function getArticleForEdit(db: D1Database, id: number): Promise<ArticleForEdit | null> {
+  const row = await db
+    .prepare(
+      `SELECT a.id, a.title, a.slug, a.excerpt, a.content_html AS contentHtml,
+              a.featured_image_url AS featuredImageUrl, a.image_caption AS imageCaption,
+              a.author_id AS authorId, a.category_id AS categoryId, a.status,
+              a.is_featured AS isFeatured, a.is_breaking AS isBreaking,
+              a.seo_title AS seoTitle, a.seo_description AS seoDescription,
+              a.local_impact_summary AS localImpactSummary,
+              (
+                SELECT GROUP_CONCAT(t.name, '|')
+                FROM article_tags at2 JOIN tags t ON t.id = at2.tag_id
+                WHERE at2.article_id = a.id
+              ) AS tagsRaw
+       FROM articles a WHERE a.id = ?`
+    )
+    .bind(id)
+    .first<{
+      id: number;
+      title: string;
+      slug: string;
+      excerpt: string;
+      contentHtml: string;
+      featuredImageUrl: string | null;
+      imageCaption: string | null;
+      authorId: number;
+      categoryId: number;
+      status: string;
+      isFeatured: number;
+      isBreaking: number;
+      seoTitle: string | null;
+      seoDescription: string | null;
+      localImpactSummary: string | null;
+      tagsRaw: string | null;
+    }>();
+  if (!row) return null;
+  return {
+    id: row.id,
+    title: row.title,
+    slug: row.slug,
+    excerpt: row.excerpt,
+    // Editor works in plain text; strip the tags back out for the textarea.
+    contentText: row.contentHtml.replace(/<br\s*\/?>/g, "\n").replace(/<\/p>\s*<p>/g, "\n\n").replace(/<\/?p>/g, ""),
+    featuredImageUrl: row.featuredImageUrl,
+    imageCaption: row.imageCaption,
+    authorId: row.authorId,
+    categoryId: row.categoryId,
+    status: row.status,
+    isFeatured: row.isFeatured === 1,
+    isBreaking: row.isBreaking === 1,
+    seoTitle: row.seoTitle,
+    seoDescription: row.seoDescription,
+    localImpactSummary: row.localImpactSummary,
+    tags: row.tagsRaw ? row.tagsRaw.split("|") : [],
+  };
+}
+
+export interface ArticleInput {
+  title: string;
+  slug: string;
+  excerpt: string;
+  contentHtml: string;
+  featuredImageUrl: string | null;
+  imageCaption: string | null;
+  authorId: number;
+  categoryId: number;
+  status: "draft" | "published" | "archived";
+  isFeatured: boolean;
+  isBreaking: boolean;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  localImpactSummary: string | null;
+  tags: string[];
+}
+
+async function linkTags(db: D1Database, articleId: number, tagNames: string[]): Promise<void> {
+  await db.prepare("DELETE FROM article_tags WHERE article_id = ?").bind(articleId).run();
+  for (const rawName of tagNames) {
+    const name = rawName.trim();
+    if (!name) continue;
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    if (!slug) continue;
+    await db
+      .prepare("INSERT INTO tags (name, slug) VALUES (?, ?) ON CONFLICT(slug) DO NOTHING")
+      .bind(name, slug)
+      .run();
+    const tag = await db.prepare("SELECT id FROM tags WHERE slug = ?").bind(slug).first<{ id: number }>();
+    if (tag) {
+      await db
+        .prepare("INSERT OR IGNORE INTO article_tags (article_id, tag_id) VALUES (?, ?)")
+        .bind(articleId, tag.id)
+        .run();
+    }
+  }
+}
+
+export async function createArticle(db: D1Database, input: ArticleInput): Promise<number> {
+  const publishedAt = input.status === "published" ? new Date().toISOString() : null;
+  const row = await db
+    .prepare(
+      `INSERT INTO articles
+        (title, slug, excerpt, content_html, featured_image_url, image_caption, author_id, category_id,
+         status, is_featured, is_breaking, published_at, seo_title, seo_description, local_impact_summary)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       RETURNING id`
+    )
+    .bind(
+      input.title,
+      input.slug,
+      input.excerpt,
+      input.contentHtml,
+      input.featuredImageUrl,
+      input.imageCaption,
+      input.authorId,
+      input.categoryId,
+      input.status,
+      input.isFeatured ? 1 : 0,
+      input.isBreaking ? 1 : 0,
+      publishedAt,
+      input.seoTitle,
+      input.seoDescription,
+      input.localImpactSummary
+    )
+    .first<{ id: number }>();
+  const id = row!.id;
+  await linkTags(db, id, input.tags);
+  return id;
+}
+
+export async function updateArticle(db: D1Database, id: number, input: ArticleInput, wasPublished: boolean): Promise<void> {
+  const publishedAt =
+    input.status === "published" && !wasPublished ? new Date().toISOString() : undefined;
+
+  if (publishedAt) {
+    await db
+      .prepare(
+        `UPDATE articles SET title=?, slug=?, excerpt=?, content_html=?, featured_image_url=?, image_caption=?,
+          author_id=?, category_id=?, status=?, is_featured=?, is_breaking=?, seo_title=?, seo_description=?,
+          local_impact_summary=?, published_at=?, updated_at=datetime('now')
+         WHERE id=?`
+      )
+      .bind(
+        input.title, input.slug, input.excerpt, input.contentHtml, input.featuredImageUrl, input.imageCaption,
+        input.authorId, input.categoryId, input.status, input.isFeatured ? 1 : 0, input.isBreaking ? 1 : 0,
+        input.seoTitle, input.seoDescription, input.localImpactSummary, publishedAt, id
+      )
+      .run();
+  } else {
+    await db
+      .prepare(
+        `UPDATE articles SET title=?, slug=?, excerpt=?, content_html=?, featured_image_url=?, image_caption=?,
+          author_id=?, category_id=?, status=?, is_featured=?, is_breaking=?, seo_title=?, seo_description=?,
+          local_impact_summary=?, updated_at=datetime('now')
+         WHERE id=?`
+      )
+      .bind(
+        input.title, input.slug, input.excerpt, input.contentHtml, input.featuredImageUrl, input.imageCaption,
+        input.authorId, input.categoryId, input.status, input.isFeatured ? 1 : 0, input.isBreaking ? 1 : 0,
+        input.seoTitle, input.seoDescription, input.localImpactSummary, id
+      )
+      .run();
+  }
+  await linkTags(db, id, input.tags);
+}
+
+export async function archiveArticle(db: D1Database, id: number): Promise<void> {
+  await db.prepare("UPDATE articles SET status = 'archived', updated_at = datetime('now') WHERE id = ?").bind(id).run();
+}
+
 export function articleHref(article: Article): string {
   return `/${article.categorySlug}/${article.slug}`;
 }
