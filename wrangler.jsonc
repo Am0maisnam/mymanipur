@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mymanipur",
+  "compatibility_date": "2026-08-26",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mymanipur-db",
+      "database_id": "cb27bdef-77e0-4f77-b390-5c99dc586361"
+    }
+  ]
+}

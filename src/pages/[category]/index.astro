@@ -3,18 +3,19 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import Header from "../../components/Header.astro";
 import Footer from "../../components/Footer.astro";
 import ArticleCard from "../../components/ArticleCard.astro";
-import { categories } from "../../data/categories";
+import { getCategoryBySlug } from "../../lib/categories";
 import { getArticlesByCategory } from "../../lib/articles";
+import { env } from "cloudflare:workers";
 
-export function getStaticPaths() {
-  return categories.map((category) => ({
-    params: { category: category.slug },
-    props: { category },
-  }));
+const db = env.DB;
+const { category: categorySlug } = Astro.params;
+
+const category = await getCategoryBySlug(db, categorySlug!);
+if (!category) {
+  return Astro.rewrite("/404");
 }
 
-const { category } = Astro.props;
-const categoryArticles = getArticlesByCategory(category.slug);
+const categoryArticles = await getArticlesByCategory(db, category.slug);
 ---
 
 <BaseLayout title={category.name} description={`Latest ${category.name} news from MyManipur.`}>

@@ -6,14 +6,18 @@ import BreakingNewsTicker from "../components/BreakingNewsTicker.astro";
 import HeroArticle from "../components/HeroArticle.astro";
 import ArticleCard from "../components/ArticleCard.astro";
 import LiveUpdatesFeed from "../components/LiveUpdatesFeed.astro";
-import { liveUpdates } from "../data/sampleArticles";
-import { getFeaturedArticle, getLatestArticles, getBreakingArticle, articleHref } from "../lib/articles";
+import ImpactSection from "../components/ImpactSection.astro";
+import { liveUpdates } from "../data/liveUpdates";
+import { getFeaturedArticle, getLatestArticles, getBreakingArticle, getImpactArticles, articleHref } from "../lib/articles";
+import { env } from "cloudflare:workers";
 
-const featuredArticle = getFeaturedArticle()!;
-const topStories = getLatestArticles(10)
-  .filter((a) => a.slug !== featuredArticle.slug)
-  .slice(0, 2);
-const breakingArticle = getBreakingArticle();
+const db = env.DB;
+
+const featuredArticle = await getFeaturedArticle(db);
+const latest = await getLatestArticles(db, 10);
+const topStories = latest.filter((a) => a.slug !== featuredArticle?.slug).slice(0, 2);
+const breakingArticle = await getBreakingArticle(db);
+const impactArticles = await getImpactArticles(db);
 ---
 
 <BaseLayout title="Home">
@@ -21,7 +25,7 @@ const breakingArticle = getBreakingArticle();
   <main class="w-full pt-16 min-h-screen">
     {breakingArticle && <BreakingNewsTicker text={breakingArticle.title} href={articleHref(breakingArticle)} />}
 
-    <HeroArticle article={featuredArticle} />
+    {featuredArticle && <HeroArticle article={featuredArticle} />}
 
     <section class="max-w-container mx-auto px-margin-mobile md:px-margin-desktop py-section-gap w-full">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
@@ -57,6 +61,8 @@ const breakingArticle = getBreakingArticle();
         <LiveUpdatesFeed updates={liveUpdates} />
       </div>
     </section>
+
+    <ImpactSection articles={impactArticles} />
   </main>
   <Footer />
 </BaseLayout>

@@ -3,13 +3,14 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import ArticleCard from "../components/ArticleCard.astro";
-import { getCategory } from "../data/categories";
 import { getLatestArticles } from "../lib/articles";
+import { env } from "cloudflare:workers";
 
-// No backend/D1 exists yet (Phase 4), so search runs client-side over this
-// small placeholder dataset — every article is rendered up front and the
-// script below shows/hides cards as the visitor types.
-const allArticles = getLatestArticles(100);
+// No dedicated search API yet (Phase 8) — every published article is
+// rendered up front and the script below shows/hides cards as the visitor
+// types. Fine at today's content volume; revisit if the catalog grows large.
+const db = env.DB;
+const allArticles = await getLatestArticles(db, 200);
 ---
 
 <BaseLayout title="Search" description="Search MyManipur articles.">
@@ -39,8 +40,7 @@ const allArticles = getLatestArticles(100);
       <div id="search-results" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {
           allArticles.map((article) => {
-            const category = getCategory(article.categorySlug);
-            const haystack = `${article.title} ${article.excerpt} ${category?.name ?? ""} ${article.tags.join(" ")}`.toLowerCase();
+            const haystack = `${article.title} ${article.excerpt} ${article.categoryName} ${article.tags.join(" ")}`.toLowerCase();
             return (
               <div data-search={haystack} data-result>
                 <ArticleCard article={article} />

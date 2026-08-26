@@ -3,24 +3,20 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import Header from "../../components/Header.astro";
 import Footer from "../../components/Footer.astro";
 import ArticleCard from "../../components/ArticleCard.astro";
-import { getCategory } from "../../data/categories";
-import { articles } from "../../data/sampleArticles";
-import { getArticleBySlug, getRelatedArticles } from "../../lib/articles";
+import ImpactCallout from "../../components/ImpactCallout.astro";
+import { getArticleBySlug, getRelatedArticles, estimateReadTime, formatPublished } from "../../lib/articles";
+import { env } from "cloudflare:workers";
 
-export function getStaticPaths() {
-  return articles.map((article) => ({
-    params: { category: article.categorySlug, slug: article.slug },
-  }));
+const db = env.DB;
+const { category: categorySlug, slug } = Astro.params;
+
+const article = await getArticleBySlug(db, categorySlug!, slug!);
+if (!article) {
+  return Astro.rewrite("/404");
 }
 
-const { category: categorySlug, slug } = Astro.params;
-// getStaticPaths above generates one route per article in the same source
-// array, so a matching article is guaranteed to exist here.
-const article = getArticleBySlug(categorySlug!, slug!)!;
-
-const category = getCategory(article.categorySlug);
-const related = getRelatedArticles(article);
-const publishedLabel = article.publishedAt.toLocaleDateString("en-US", {
+const related = await getRelatedArticles(db, article);
+const publishedLabel = new Date(article.publishedAt).toLocaleDateString("en-US", {
   weekday: "long",
   year: "numeric",
   month: "long",
@@ -35,23 +31,21 @@ const publishedLabel = article.publishedAt.toLocaleDateString("en-US", {
       <nav class="text-metadata text-on-surface-variant mb-6" aria-label="Breadcrumb">
         <a href="/" class="hover:text-primary transition-colors">Home</a>
         <span class="mx-2">/</span>
-        <a href={`/${article.categorySlug}`} class="hover:text-primary transition-colors">{category?.name}</a>
+        <a href={`/${article.categorySlug}`} class="hover:text-primary transition-colors">{article.categoryName}</a>
         <span class="mx-2">/</span>
         <span class="text-on-surface line-clamp-1">{article.title}</span>
       </nav>
 
       <div class="max-w-3xl mx-auto">
-        {category && (
-          <a href={`/${category.slug}`} class="text-label-caps text-primary uppercase tracking-widest mb-4 block">
-            {category.name}
-          </a>
-        )}
+        <a href={`/${article.categorySlug}`} class="text-label-caps text-primary uppercase tracking-widest mb-4 block">
+          {article.categoryName}
+        </a>
         <h1 class="text-display-lg text-on-surface mb-6 leading-tight">{article.title}</h1>
         <p class="text-body-lg text-on-surface-variant mb-6">{article.excerpt}</p>
         <div class="flex flex-wrap items-center gap-4 text-on-surface-variant text-metadata pb-8 mb-8 border-b border-outline-variant">
           <span class="flex items-center gap-1.5">
             <span class="material-symbols-outlined text-[16px]">edit</span>
-            {article.author}
+            {article.authorName}
           </span>
           <span class="w-1 h-1 rounded-full bg-outline-variant"></span>
           <span class="flex items-center gap-1.5">
@@ -61,33 +55,41 @@ const publishedLabel = article.publishedAt.toLocaleDateString("en-US", {
           <span class="w-1 h-1 rounded-full bg-outline-variant"></span>
           <span class="flex items-center gap-1.5">
             <span class="material-symbols-outlined text-[16px]">menu_book</span>
-            {article.readTime}
+            {estimateReadTime(article.contentHtml)}
           </span>
         </div>
       </div>
 
-      <div class="max-w-3xl mx-auto mb-10">
-        <figure>
-          <img
-            src={article.imageUrl}
-            alt={article.imageAlt}
-            class="w-full aspect-[16/9] object-cover rounded-xl"
-          />
-          <figcaption class="text-metadata text-on-surface-variant mt-2">{article.imageAlt}</figcaption>
-        </figure>
-      </div>
+      {article.featuredImageUrl && (
+        <div class="max-w-3xl mx-auto mb-10">
+          <figure>
+            <img
+              src={article.featuredImageUrl}
+              alt={article.imageCaption ?? article.title}
+              class="w-full aspect-[16/9] object-cover rounded-xl"
+            />
+            {article.imageCaption && (
+              <figcaption class="text-metadata text-on-surface-variant mt-2">{article.imageCaption}</figcaption>
+            )}
+          </figure>
+        </div>
+      )}
 
-      <div class="max-w-3xl mx-auto text-body-lg text-on-surface space-y-6">
-        {article.content.map((paragraph) => <p>{paragraph}</p>)}
-      </div>
+      {article.localImpactSummary && (
+        <div class="max-w-3xl mx-auto mb-10">
+          <ImpactCallout summary={article.localImpactSummary} />
+        </div>
+      )}
 
-      <div class="max-w-3xl mx-auto flex flex-wrap gap-2 mt-10">
-        {
-          article.tags.map((tag) => (
+      <div class="max-w-3xl mx-auto text-body-lg text-on-surface space-y-6" set:html={article.contentHtml} />
+
+      {article.tags.length > 0 && (
+        <div class="max-w-3xl mx-auto flex flex-wrap gap-2 mt-10">
+          {article.tags.map((tag) => (
             <span class="px-3 py-1 bg-surface-container text-metadata text-on-surface-variant rounded-sm">{tag}</span>
-          ))
-        }
-      </div>
+          ))}
+        </div>
+      )}
 
       <div class="max-w-3xl mx-auto flex items-center gap-4 mt-10 pt-8 border-t border-outline-variant">
         <span class="text-label-caps text-on-surface-variant uppercase">Share</span>

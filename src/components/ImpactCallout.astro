@@ -1,0 +1,15 @@
+---
+interface Props {
+  summary: string;
+}
+
+const { summary } = Astro.props;
+---
+
+<div class="border-l-4 border-accent bg-accent/5 rounded-r-lg p-6 flex gap-4">
+  <span class="material-symbols-outlined text-accent text-[28px] shrink-0">location_on</span>
+  <div>
+    <h3 class="text-label-caps text-accent uppercase tracking-widest mb-2">How This Affects Manipur</h3>
+    <p class="text-body-md text-on-surface leading-relaxed">{summary}</p>
+  </div>
+</div>

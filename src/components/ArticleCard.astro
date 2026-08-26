@@ -1,27 +1,25 @@
 ---
-import type { SampleArticle } from "../data/sampleArticles";
-import { getCategory } from "../data/categories";
-import { articleHref } from "../lib/articles";
+import type { Article } from "../lib/articles";
+import { articleHref, estimateReadTime } from "../lib/articles";
 
 interface Props {
-  article: SampleArticle;
+  article: Article;
 }
 
 const { article } = Astro.props;
-const category = getCategory(article.categorySlug);
 const href = articleHref(article);
 ---
 
 <article class="group flex flex-col gap-4">
   <a href={href} class="aspect-[4/3] w-full overflow-hidden rounded-lg bg-surface-container block">
     <img
-      src={article.imageUrl}
-      alt={article.imageAlt}
+      src={article.featuredImageUrl ?? ""}
+      alt={article.imageCaption ?? article.title}
       class="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-85"
     />
   </a>
   <div>
-    {category && <span class="text-label-caps text-primary uppercase tracking-widest mb-2 block">{category.name}</span>}
+    <span class="text-label-caps text-primary uppercase tracking-widest mb-2 block">{article.categoryName}</span>
     <h3 class="text-headline-md text-on-surface mb-3">
       <a href={href} class="group-hover:text-primary/80 transition-colors line-clamp-3">
         {article.title}
@@ -29,7 +27,7 @@ const href = articleHref(article);
     </h3>
     <div class="flex items-center gap-2 text-on-surface-variant text-metadata">
       <span class="material-symbols-outlined text-[14px]">menu_book</span>
-      {article.readTime}
+      {estimateReadTime(article.contentHtml)}
     </div>
   </div>
 </article>
