@@ -1,0 +1,36 @@
+---
+import type { Article } from "../lib/articles";
+import { articleHref } from "../lib/articles";
+
+interface Props {
+  articles: Article[];
+}
+
+const { articles } = Astro.props;
+---
+
+{
+  articles.length > 0 && (
+    <section class="max-w-container mx-auto px-margin-mobile md:px-margin-desktop py-section-gap w-full">
+      <div class="flex items-center gap-3 pb-4 mb-8 border-b-2 border-accent">
+        <span class="material-symbols-outlined text-accent">location_on</span>
+        <h2 class="text-headline-lg text-on-surface">How It Affects Manipur</h2>
+      </div>
+      <p class="text-body-md text-on-surface-variant mb-8 max-w-2xl">
+        National and international stories, with a look at what they mean closer to home.
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {articles.map((article) => (
+          <a href={articleHref(article)} class="group block border border-outline-variant rounded-lg p-6 hover:border-accent transition-colors">
+            <span class="text-label-caps text-primary uppercase tracking-widest mb-3 block">{article.categoryName}</span>
+            <h3 class="text-headline-md text-on-surface mb-3 group-hover:text-primary/80 transition-colors line-clamp-2">
+              {article.title}
+            </h3>
+            <p class="text-body-md text-on-surface-variant line-clamp-3">{article.localImpactSummary}</p>
+          </a>
+        ))}
+      </div>
+    </section>
+  )
+}

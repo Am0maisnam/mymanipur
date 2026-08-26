@@ -1,14 +1,12 @@
 ---
-import type { SampleArticle } from "../data/sampleArticles";
-import { getCategory } from "../data/categories";
+import type { Article } from "../lib/articles";
 import { articleHref, formatPublished } from "../lib/articles";
 
 interface Props {
-  article: SampleArticle;
+  article: Article;
 }
 
 const { article } = Astro.props;
-const category = getCategory(article.categorySlug);
 const href = articleHref(article);
 ---
 
@@ -16,8 +14,8 @@ const href = articleHref(article);
   <a href={href} class="relative group block overflow-hidden rounded-xl bg-surface-container shadow-xl transition-all duration-300">
     <div class="aspect-[16/9] md:aspect-[2/1] w-full relative">
       <img
-        src={article.imageUrl}
-        alt={article.imageAlt}
+        src={article.featuredImageUrl ?? ""}
+        alt={article.imageCaption ?? article.title}
         class="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-90"
       />
       <div class="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/40 to-transparent"></div>
@@ -34,21 +32,15 @@ const href = articleHref(article);
         <div class="flex items-center gap-4 text-on-primary/80 text-metadata">
           <span class="flex items-center gap-1.5">
             <span class="material-symbols-outlined text-[16px]">edit</span>
-            {article.author}
+            {article.authorName}
           </span>
           <span class="w-1 h-1 rounded-full bg-on-primary/50"></span>
           <span class="flex items-center gap-1.5">
             <span class="material-symbols-outlined text-[16px]">schedule</span>
             {formatPublished(article.publishedAt)}
           </span>
-          {
-            category && (
-              <>
-                <span class="w-1 h-1 rounded-full bg-on-primary/50" />
-                <span>{category.name}</span>
-              </>
-            )
-          }
+          <span class="w-1 h-1 rounded-full bg-on-primary/50" />
+          <span>{article.categoryName}</span>
         </div>
       </div>
     </div>
