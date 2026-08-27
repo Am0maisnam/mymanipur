@@ -22,9 +22,42 @@ const publishedLabel = new Date(article.publishedAt).toLocaleDateString("en-US",
   month: "long",
   day: "numeric",
 });
+
+const canonicalUrl = new URL(`/${article.categorySlug}/${article.slug}`, Astro.url.origin).toString();
+const imageUrl = article.featuredImageUrl
+  ? new URL(article.featuredImageUrl, Astro.url.origin).toString()
+  : undefined;
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "NewsArticle",
+  headline: article.title,
+  description: article.excerpt,
+  image: imageUrl ? [imageUrl] : undefined,
+  datePublished: article.publishedAt,
+  dateModified: article.publishedAt,
+  author: { "@type": "Person", name: article.authorName },
+  publisher: {
+    "@type": "Organization",
+    name: "MyManipur",
+    logo: { "@type": "ImageObject", url: new URL("/images/logo.png", Astro.url.origin).toString() },
+  },
+  mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl },
+  articleSection: article.categoryName,
+  keywords: article.tags.join(", ") || undefined,
+};
 ---
 
-<BaseLayout title={article.title} description={article.excerpt}>
+<BaseLayout
+  title={article.title}
+  description={article.excerpt}
+  image={article.featuredImageUrl ?? undefined}
+  type="article"
+  publishedTime={article.publishedAt}
+>
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  </Fragment>
   <Header />
   <main class="w-full pt-16 min-h-screen">
     <article class="max-w-container mx-auto px-margin-mobile md:px-margin-desktop py-12 w-full">
