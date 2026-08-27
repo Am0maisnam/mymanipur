@@ -5,6 +5,7 @@ import Footer from "../../components/Footer.astro";
 import ArticleCard from "../../components/ArticleCard.astro";
 import ImpactCallout from "../../components/ImpactCallout.astro";
 import { getArticleBySlug, getRelatedArticles, estimateReadTime, formatPublished } from "../../lib/articles";
+import { safeJsonLd } from "../../lib/content";
 import { env } from "cloudflare:workers";
 
 const db = env.DB;
@@ -56,10 +57,10 @@ const jsonLd = {
   publishedTime={article.publishedAt}
 >
   <Fragment slot="head">
-    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+    <script type="application/ld+json" set:html={safeJsonLd(jsonLd)} />
   </Fragment>
   <Header />
-  <main class="w-full pt-16 min-h-screen">
+  <main id="main-content" class="w-full pt-16 min-h-screen">
     <article class="max-w-container mx-auto px-margin-mobile md:px-margin-desktop py-12 w-full">
       <nav class="text-metadata text-on-surface-variant mb-6" aria-label="Breadcrumb">
         <a href="/" class="hover:text-primary transition-colors">Home</a>

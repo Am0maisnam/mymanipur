@@ -20,7 +20,7 @@ const categoryArticles = await getArticlesByCategory(db, category.slug);
 
 <BaseLayout title={category.name} description={`Latest ${category.name} news from MyManipur.`}>
   <Header />
-  <main class="w-full pt-16 min-h-screen">
+  <main id="main-content" class="w-full pt-16 min-h-screen">
     <section class="max-w-container mx-auto px-margin-mobile md:px-margin-desktop py-12 w-full">
       <nav class="text-metadata text-on-surface-variant mb-6" aria-label="Breadcrumb">
         <a href="/" class="hover:text-primary transition-colors">Home</a>

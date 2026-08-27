@@ -20,6 +20,13 @@ export function plainTextToHtml(text: string): string {
     .join("");
 }
 
+// JSON.stringify doesn't escape "</", so a title/excerpt containing the
+// literal text "</script>" could break out of a <script> tag it's embedded
+// in via set:html. This is the standard mitigation.
+export function safeJsonLd(data: unknown): string {
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}
+
 export function slugify(text: string): string {
   return text
     .toLowerCase()
