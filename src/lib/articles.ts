@@ -420,6 +420,23 @@ export async function archiveArticle(db: D1Database, id: number): Promise<void> 
   await db.prepare("UPDATE articles SET status = 'archived', updated_at = datetime('now') WHERE id = ?").bind(id).run();
 }
 
+export interface SitemapEntry {
+  categorySlug: string;
+  slug: string;
+  publishedAt: string;
+}
+
+export async function getSitemapArticles(db: D1Database): Promise<SitemapEntry[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT c.slug AS categorySlug, a.slug, a.published_at AS publishedAt
+       FROM articles a JOIN categories c ON c.id = a.category_id
+       WHERE a.status = 'published' ORDER BY a.published_at DESC`
+    )
+    .all<SitemapEntry>();
+  return results;
+}
+
 export function articleHref(article: Article): string {
   return `/${article.categorySlug}/${article.slug}`;
 }
