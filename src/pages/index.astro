@@ -22,7 +22,7 @@ const impactArticles = await getImpactArticles(db);
 
 <BaseLayout title="Home">
   <Header />
-  <main class="w-full pt-16 min-h-screen">
+  <main id="main-content" class="w-full pt-16 min-h-screen">
     {breakingArticle && <BreakingNewsTicker text={breakingArticle.title} href={articleHref(breakingArticle)} />}
 
     {featuredArticle && <HeroArticle article={featuredArticle} />}
@@ -49,7 +49,7 @@ const impactArticles = await getImpactArticles(db);
               </span>
             </div>
             <div>
-              <h4 class="text-headline-md text-on-surface mb-2">Download the Monthly Civic Report</h4>
+              <h3 class="text-headline-md text-on-surface mb-2">Download the Monthly Civic Report</h3>
               <p class="text-body-md text-on-surface-variant max-w-xl">
                 Deep dive into the latest policy changes affecting infrastructure and local businesses across the
                 valley.

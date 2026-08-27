@@ -30,17 +30,18 @@ const navLinks = [
       rel="stylesheet"
     />
   </head>
-  <body class="bg-surface font-sans text-on-background min-h-screen flex">
-    <aside class="w-56 shrink-0 border-r border-outline-variant bg-surface-container-lowest min-h-screen flex flex-col">
-      <div class="h-16 flex items-center px-6 border-b border-outline-variant">
+  <body class="bg-surface font-sans text-on-background min-h-screen flex flex-col lg:flex-row">
+    <a href="#main-content" class="skip-link">Skip to content</a>
+    <aside class="w-full lg:w-56 shrink-0 border-b lg:border-b-0 lg:border-r border-outline-variant bg-surface-container-lowest lg:min-h-screen flex flex-col">
+      <div class="h-16 flex items-center justify-between px-6 border-b border-outline-variant lg:border-b lg:justify-start">
         <a href="/" class="text-label-caps text-on-surface uppercase tracking-widest">MyManipur Admin</a>
       </div>
-      <nav class="flex flex-col p-4 gap-1 flex-1">
+      <nav class="flex flex-row lg:flex-col overflow-x-auto p-4 gap-1 lg:flex-1">
         {
           navLinks.map((link) => (
             <a
               href={link.href}
-              class="px-3 py-2 rounded-md text-body-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"
+              class="px-3 py-2 rounded-md text-body-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors whitespace-nowrap"
             >
               {link.label}
             </a>
@@ -59,8 +60,8 @@ const navLinks = [
         </form>
       </div>
     </aside>
-    <main class="flex-1 min-h-screen">
-      <div class="max-w-5xl mx-auto px-8 py-10">
+    <main id="main-content" class="flex-1 min-h-screen min-w-0">
+      <div class="max-w-5xl mx-auto px-4 sm:px-8 py-10">
         <slot />
       </div>
     </main>

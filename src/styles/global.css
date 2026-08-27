@@ -121,3 +121,33 @@ body {
   background-color: var(--color-background);
   color: var(--color-on-background);
 }
+
+/* Visible keyboard focus (WCAG 2.4.7). Form controls use outline-none for
+   the minimalist underline style per DESIGN.md, so they need an explicit
+   replacement rather than just losing focus indication entirely. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  padding: 0.75rem 1.5rem;
+}
+
+.skip-link:focus {
+  left: 0.5rem;
+  top: 0.5rem;
+}
