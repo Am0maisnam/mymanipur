@@ -1,0 +1,81 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { env } from "cloudflare:workers";
+import { getCategoryBySlug } from "../../lib/categories";
+import { getAuthors } from "../../lib/authors";
+import { ingestNewsItems, type IngestResult } from "../../lib/newsIngestion";
+import { gnewsProvider } from "../../lib/newsProviders/gnews";
+import { getAllArticlesAdmin } from "../../lib/articles";
+
+const db = env.DB;
+let result: IngestResult | null = null;
+let error: string | null = null;
+
+if (Astro.request.method === "POST") {
+  if (!env.NEWS_API_KEY) {
+    error =
+      "NEWS_API_KEY isn't set. Run `wrangler secret put NEWS_API_KEY` (or add it to .dev.vars locally) with your GNews API key.";
+  } else {
+    try {
+      const category = await getCategoryBySlug(db, "northeast");
+      const authors = await getAuthors(db);
+      const author = authors.find((a) => a.name === "MyManipur Desk") ?? authors[0];
+
+      if (!category || !author) {
+        error = "Need at least one category and one author before syncing.";
+      } else {
+        const items = await gnewsProvider.fetchLatest(env.NEWS_API_KEY);
+        result = await ingestNewsItems(db, items, category.id, author.id);
+      }
+    } catch (err) {
+      error = err instanceof Error ? err.message : String(err);
+    }
+  }
+}
+
+const wireArticles = (await getAllArticlesAdmin(db)).filter((a) => a.status === "draft");
+---
+
+<AdminLayout title="News Sync">
+  <h1 class="text-headline-lg text-on-surface mb-4">News Sync</h1>
+  <p class="text-body-md text-on-surface-variant mb-8 max-w-2xl">
+    Pulls the latest Manipur/Northeast-related stories from {gnewsProvider.name} and adds them as
+    <strong>drafts</strong> — nothing is published automatically. Each draft links back to the original source
+    rather than copying its full text. Review, rewrite, categorize, and publish each one from the article editor.
+  </p>
+
+  {error && <p class="text-body-md text-error mb-6 max-w-2xl">{error}</p>}
+  {
+    result && (
+      <p class="text-body-md text-primary mb-6">
+        Synced: {result.created} new draft{result.created === 1 ? "" : "s"} created, {result.skipped} already existed.
+        {result.errors.length > 0 && ` ${result.errors.length} failed.`}
+      </p>
+    )
+  }
+
+  <form method="POST" class="mb-12">
+    <button
+      type="submit"
+      class="px-6 py-3 bg-primary text-on-primary text-label-caps uppercase tracking-wider rounded-md hover:opacity-90 transition-opacity"
+    >
+      Sync Now
+    </button>
+  </form>
+
+  <h2 class="text-headline-md text-on-surface mb-4">Drafts Awaiting Review</h2>
+  <div class="border border-outline-variant rounded-lg divide-y divide-outline-variant">
+    {
+      wireArticles.map((article) => (
+        <a
+          href={`/admin/articles/${article.id}/edit`}
+          class="flex items-center justify-between p-4 hover:bg-surface-container-low transition-colors"
+        >
+          <p class="text-body-md text-on-surface">{article.title}</p>
+          <span class="text-metadata text-on-surface-variant">{article.categoryName}</span>
+        </a>
+      ))
+    }
+    {wireArticles.length === 0 && <p class="p-4 text-body-md text-on-surface-variant">No drafts waiting.</p>}
+  </div>
+</AdminLayout>
