@@ -16,10 +16,14 @@
       "bucket_name": "mymanipur-media"
     }
   ],
+  "kv_namespaces": [
+    {
+      "binding": "RATE_LIMIT",
+      "id": "df8dfeb4ec0e46dd89d095d5f5b4b2fe"
+    }
+  ],
   // ADSENSE_CLIENT_ID is a public publisher ID (ca-pub-XXXXXXXXXXXX), not a
-  // secret — it's meant to be embedded in every page's HTML. Left empty
-  // until the site is AdSense-approved; the ad script/CSP stay inactive
-  // until it's set.
+  // secret — it's meant to be embedded in every page's HTML.
   "vars": {
     "ADSENSE_CLIENT_ID": "ca-pub-9002721516543448"
   }

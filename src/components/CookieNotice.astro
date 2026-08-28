@@ -1,0 +1,51 @@
+---
+// A lightweight, informational cookie notice — not a full consent-management
+// platform. Fine for a primarily India-based audience; if this site draws
+// meaningful EU/UK traffic, Google requires publishers to use a certified
+// CMP (e.g. Google Funding Choices) for personalized-ad consent there, which
+// this is NOT a substitute for.
+---
+
+<div
+  id="cookie-notice"
+  class="hidden fixed bottom-0 left-0 right-0 z-50 bg-primary text-on-primary border-t border-outline-variant"
+>
+  <div class="max-w-container mx-auto px-margin-mobile md:px-margin-desktop py-4 flex flex-col sm:flex-row items-center gap-4">
+    <p class="text-body-md flex-1">
+      This site uses cookies, including for personalized ads served by Google AdSense. See our
+      {" "}
+      <a href="/privacy" class="underline hover:opacity-80">Privacy Policy</a> to learn more or opt out.
+    </p>
+    <button
+      id="cookie-notice-dismiss"
+      type="button"
+      class="shrink-0 px-6 py-2 bg-on-primary text-primary text-label-caps uppercase tracking-wider rounded-md hover:opacity-90 transition-opacity"
+    >
+      Got it
+    </button>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = "cookie-notice-dismissed";
+  const notice = document.getElementById("cookie-notice");
+  const dismissBtn = document.getElementById("cookie-notice-dismiss");
+
+  try {
+    if (notice && !localStorage.getItem(STORAGE_KEY)) {
+      notice.classList.remove("hidden");
+    }
+  } catch {
+    // localStorage unavailable (private browsing etc.) — just skip showing it
+    // rather than erroring the page.
+  }
+
+  dismissBtn?.addEventListener("click", () => {
+    notice?.classList.add("hidden");
+    try {
+      localStorage.setItem(STORAGE_KEY, "1");
+    } catch {
+      // Nothing to do if storage isn't available — it'll just show again next visit.
+    }
+  });
+</script>
