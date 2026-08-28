@@ -1,5 +1,10 @@
 ---
 import "../styles/global.css";
+import { env } from "cloudflare:workers";
+
+// Public publisher ID, not a secret — see wrangler.jsonc. Empty until the
+// site is AdSense-approved, in which case the script below is a no-op.
+const adsenseClientId = env.ADSENSE_CLIENT_ID as string;
 
 interface Props {
   title: string;
@@ -50,6 +55,14 @@ const pageTitle = `${title} | MyManipur`;
     <meta name="twitter:image" content={ogImage} />
 
     <link rel="alternate" type="application/rss+xml" title="MyManipur" href="/rss.xml" />
+
+    {adsenseClientId && (
+      <script
+        async
+        src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClientId}`}
+        crossorigin="anonymous"
+      />
+    )}
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

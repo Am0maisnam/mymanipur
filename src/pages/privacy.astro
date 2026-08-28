@@ -1,0 +1,83 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+
+const lastUpdated = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+---
+
+<BaseLayout title="Privacy Policy" description="MyManipur's privacy policy: what information we collect and how it's used.">
+  <Header />
+  <main id="main-content" class="w-full pt-16 min-h-screen">
+    <article class="max-w-container mx-auto px-margin-mobile md:px-margin-desktop py-12 w-full">
+      <div class="max-w-3xl mx-auto">
+        <h1 class="text-display-lg text-on-surface mb-4 leading-tight">Privacy Policy</h1>
+        <p class="text-metadata text-on-surface-variant mb-10">Last updated: {lastUpdated}</p>
+
+        <div class="text-body-lg text-on-surface space-y-6">
+          <p>
+            MyManipur ("we", "us", "our") publishes this policy to explain what information is collected from
+            visitors to this website and how it is used.
+          </p>
+
+          <h2 class="text-headline-md text-on-surface pt-4">Information We Collect</h2>
+          <p>
+            We do not require visitors to create an account to read articles. We collect limited information
+            automatically when you visit the site, including standard web server logs (such as IP address,
+            browser type, and pages visited), which are used to operate and secure the site.
+          </p>
+          <p>
+            If you create an admin account to manage this site's content, we store your email address and a
+            securely hashed password. We never store passwords in plain text.
+          </p>
+
+          <h2 class="text-headline-md text-on-surface pt-4">Cookies</h2>
+          <p>
+            This site may use cookies for basic functionality (such as keeping an administrator signed in) and,
+            where advertising is enabled, cookies set by our advertising partners to serve and measure ads.
+          </p>
+
+          <h2 class="text-headline-md text-on-surface pt-4">Advertising</h2>
+          <p>
+            This site may display advertisements served by Google AdSense. Google, as a third-party vendor, uses
+            cookies to serve ads based on a visitor's prior visits to this and other websites. Google's use of
+            advertising cookies enables it and its partners to serve ads based on your visit to this site and/or
+            other sites on the Internet.
+          </p>
+          <p>
+            You may opt out of personalized advertising by visiting
+            {" "}
+            <a href="https://adssettings.google.com" class="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+              Google's Ads Settings
+            </a>. For more detail on how Google uses data when you use our site, see
+            {" "}
+            <a
+              href="https://policies.google.com/technologies/partner-sites"
+              class="text-primary hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              How Google uses information from sites or apps that use our services
+            </a>.
+          </p>
+
+          <h2 class="text-headline-md text-on-surface pt-4">Third-Party Links</h2>
+          <p>
+            Articles on this site may link to external sources, including original news reporting we reference or
+            summarize. We are not responsible for the privacy practices of external sites.
+          </p>
+
+          <h2 class="text-headline-md text-on-surface pt-4">Children's Privacy</h2>
+          <p>This site is not directed at children under 13, and we do not knowingly collect personal information from children.</p>
+
+          <h2 class="text-headline-md text-on-surface pt-4">Changes to This Policy</h2>
+          <p>We may update this policy from time to time. Changes will be posted on this page with an updated date.</p>
+
+          <h2 class="text-headline-md text-on-surface pt-4">Contact</h2>
+          <p>Questions about this policy can be sent to <span class="italic">[add a contact email here]</span>.</p>
+        </div>
+      </div>
+    </article>
+  </main>
+  <Footer />
+</BaseLayout>
