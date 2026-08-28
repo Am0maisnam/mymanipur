@@ -9,5 +9,11 @@
       "database_name": "mymanipur-db",
       "database_id": "cb27bdef-77e0-4f77-b390-5c99dc586361"
     }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "mymanipur-media"
+    }
   ]
 }
