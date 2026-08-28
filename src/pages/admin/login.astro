@@ -3,6 +3,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import { env } from "cloudflare:workers";
 import { countUsers, getUserByEmail } from "../../lib/users";
 import { verifyPassword } from "../../lib/auth";
+import { checkLoginRateLimit, recordFailedLogin, resetLoginRateLimit } from "../../lib/rateLimit";
 
 const db = env.DB;
 
@@ -11,26 +12,35 @@ if ((await countUsers(db)) === 0) {
 }
 
 let error: string | null = null;
+const clientIp = Astro.request.headers.get("cf-connecting-ip") || "unknown";
 
 if (Astro.request.method === "POST") {
-  const form = await Astro.request.formData();
-  const email = String(form.get("email") ?? "").trim().toLowerCase();
-  const password = String(form.get("password") ?? "");
+  const rateLimit = await checkLoginRateLimit(env.RATE_LIMIT, clientIp);
 
-  const user = await getUserByEmail(db, email);
-  const valid = user ? await verifyPassword(password, user.passwordHash) : false;
-
-  if (!user || !valid) {
-    error = "Incorrect email or password.";
+  if (!rateLimit.allowed) {
+    error = `Too many failed login attempts. Please try again in ${rateLimit.retryAfterMinutes} minutes.`;
   } else {
-    Astro.session?.set("userId", user.id);
-    Astro.session?.set("userEmail", user.email);
-    return Astro.redirect("/admin");
+    const form = await Astro.request.formData();
+    const email = String(form.get("email") ?? "").trim().toLowerCase();
+    const password = String(form.get("password") ?? "");
+
+    const user = await getUserByEmail(db, email);
+    const valid = user ? await verifyPassword(password, user.passwordHash) : false;
+
+    if (!user || !valid) {
+      await recordFailedLogin(env.RATE_LIMIT, clientIp);
+      error = "Incorrect email or password.";
+    } else {
+      await resetLoginRateLimit(env.RATE_LIMIT, clientIp);
+      Astro.session?.set("userId", user.id);
+      Astro.session?.set("userEmail", user.email);
+      return Astro.redirect("/admin");
+    }
   }
 }
 ---
 
-<BaseLayout title="Admin Login" noindex={true}>
+<BaseLayout title="Admin Login" noindex={true} showAds={false}>
   <main id="main-content" class="min-h-screen flex items-center justify-center px-margin-mobile bg-surface">
     <div class="w-full max-w-sm">
       <h1 class="text-headline-lg text-on-surface mb-8">Admin Login</h1>

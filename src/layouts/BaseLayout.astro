@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import { env } from "cloudflare:workers";
+import CookieNotice from "../components/CookieNotice.astro";
 
 // Public publisher ID, not a secret — see wrangler.jsonc. Empty until the
 // site is AdSense-approved, in which case the script below is a no-op.
@@ -13,6 +14,8 @@ interface Props {
   type?: "website" | "article";
   publishedTime?: string;
   noindex?: boolean;
+  /** False on admin login/setup — ads and the cookie notice have no business there. */
+  showAds?: boolean;
 }
 
 const {
@@ -22,7 +25,10 @@ const {
   type = "website",
   publishedTime,
   noindex = false,
+  showAds = true,
 } = Astro.props;
+
+const adsActive = showAds && Boolean(adsenseClientId);
 
 const canonicalUrl = new URL(Astro.url.pathname, Astro.url.origin).toString();
 const ogImage = image ? new URL(image, Astro.url.origin).toString() : new URL("/images/logo.png", Astro.url.origin).toString();
@@ -56,7 +62,7 @@ const pageTitle = `${title} | MyManipur`;
 
     <link rel="alternate" type="application/rss+xml" title="MyManipur" href="/rss.xml" />
 
-    {adsenseClientId && (
+    {adsActive && (
       <script
         async
         src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClientId}`}
@@ -79,5 +85,6 @@ const pageTitle = `${title} | MyManipur`;
   <body class="bg-background font-sans text-on-background">
     <a href="#main-content" class="skip-link">Skip to content</a>
     <slot />
+    {adsActive && <CookieNotice />}
   </body>
 </html>
