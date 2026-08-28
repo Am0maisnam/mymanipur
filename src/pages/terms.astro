@@ -1,0 +1,46 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+
+const lastUpdated = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+---
+
+<BaseLayout title="Terms of Use" description="Terms of use for the MyManipur website.">
+  <Header />
+  <main id="main-content" class="w-full pt-16 min-h-screen">
+    <article class="max-w-container mx-auto px-margin-mobile md:px-margin-desktop py-12 w-full">
+      <div class="max-w-3xl mx-auto">
+        <h1 class="text-display-lg text-on-surface mb-4 leading-tight">Terms of Use</h1>
+        <p class="text-metadata text-on-surface-variant mb-10">Last updated: {lastUpdated}</p>
+
+        <div class="text-body-lg text-on-surface space-y-6">
+          <p>By accessing MyManipur, you agree to these terms.</p>
+
+          <h2 class="text-headline-md text-on-surface pt-4">Use of Content</h2>
+          <p>
+            Articles published on this site are for personal, non-commercial reading. Reproduction or
+            redistribution of our original articles without permission is not allowed. Where we summarize or link
+            to reporting from other outlets, credit and links to the original source are provided.
+          </p>
+
+          <h2 class="text-headline-md text-on-surface pt-4">Accuracy</h2>
+          <p>
+            We aim for accuracy but do not guarantee that all content is complete, current, or error-free. If you
+            spot an error, please let us know so we can correct it.
+          </p>
+
+          <h2 class="text-headline-md text-on-surface pt-4">External Links</h2>
+          <p>This site may link to third-party websites. We are not responsible for the content of external sites.</p>
+
+          <h2 class="text-headline-md text-on-surface pt-4">Changes</h2>
+          <p>These terms may be updated from time to time; continued use of the site means you accept the current version.</p>
+
+          <h2 class="text-headline-md text-on-surface pt-4">Contact</h2>
+          <p>Questions about these terms can be sent to <span class="italic">[add a contact email here]</span>.</p>
+        </div>
+      </div>
+    </article>
+  </main>
+  <Footer />
+</BaseLayout>
