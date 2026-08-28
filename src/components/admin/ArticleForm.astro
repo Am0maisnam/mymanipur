@@ -101,10 +101,31 @@ function fieldId(name: string) {
     >{article?.contentText}</textarea>
   </div>
 
+  <div>
+    <label class="text-label-caps text-on-surface-variant uppercase block mb-2">Featured Image</label>
+    <div class="flex items-center gap-4">
+      <img
+        id="image-preview"
+        src={article?.featuredImageUrl ?? ""}
+        alt=""
+        class:list={["h-20 w-28 object-cover rounded-md bg-surface-container border border-outline-variant", { hidden: !article?.featuredImageUrl }]}
+      />
+      <div>
+        <input
+          id="image-file-input"
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          class="text-body-md text-on-surface-variant"
+        />
+        <p id="upload-status" class="text-metadata text-on-surface-variant mt-1"></p>
+      </div>
+    </div>
+  </div>
+
   <div class="grid grid-cols-2 gap-6">
     <div>
       <label for={fieldId("featuredImageUrl")} class="text-label-caps text-on-surface-variant uppercase block mb-2">
-        Featured Image URL
+        Featured Image URL <span class="normal-case text-on-surface-variant/70">(or upload above)</span>
       </label>
       <input
         id={fieldId("featuredImageUrl")}
@@ -220,3 +241,34 @@ function fieldId(name: string) {
     </a>
   </div>
 </form>
+
+<script>
+  const fileInput = document.getElementById("image-file-input") as HTMLInputElement | null;
+  const status = document.getElementById("upload-status");
+  const preview = document.getElementById("image-preview") as HTMLImageElement | null;
+  const urlInput = document.querySelector<HTMLInputElement>('input[name="featuredImageUrl"]');
+
+  fileInput?.addEventListener("change", async () => {
+    const file = fileInput.files?.[0];
+    if (!file || !status || !urlInput) return;
+
+    status.textContent = "Uploading…";
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/admin/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Upload failed");
+
+      urlInput.value = data.url;
+      if (preview) {
+        preview.src = data.url;
+        preview.classList.remove("hidden");
+      }
+      status.textContent = "Uploaded.";
+    } catch (err) {
+      status.textContent = err instanceof Error ? err.message : "Upload failed.";
+    }
+  });
+</script>
