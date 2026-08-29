@@ -16,14 +16,18 @@ function buildCsp(adsenseEnabled: boolean): string {
   // an explicit worker-src, browsers fall back to script-src for that check.
   const workerSrc = adsenseEnabled ? " blob:" : "";
 
+  // Cloudflare auto-injects its own Web Analytics beacon on zones/custom
+  // domains (not present on the plain workers.dev URL), unrelated to ads.
+  const cloudflareInsights = " https://static.cloudflareinsights.com";
+
   return [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline'${adsSources}${adTrafficQuality}${workerSrc}`,
+    `script-src 'self' 'unsafe-inline'${adsSources}${adTrafficQuality}${workerSrc}${cloudflareInsights}`,
     `worker-src 'self'${workerSrc}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     `img-src 'self' data:${adsSources}`,
-    `connect-src 'self'${adsSources}${adTrafficQuality}`,
+    `connect-src 'self'${adsSources}${adTrafficQuality}${cloudflareInsights}`,
     `frame-src 'self'${adsSources}`,
     "frame-ancestors 'none'",
     "base-uri 'self'",

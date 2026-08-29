@@ -1,6 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "mymanipur",
+  "workers_dev": true,
+  "routes": [
+    { "pattern": "mymanipur.com", "custom_domain": true },
+    { "pattern": "www.mymanipur.com", "custom_domain": true }
+  ],
   "compatibility_date": "2026-08-26",
   "compatibility_flags": ["nodejs_compat"],
   "d1_databases": [
