@@ -3,18 +3,43 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
 import { env } from "cloudflare:workers";
 import { getCategoryBySlug } from "../../lib/categories";
 import { getAuthors } from "../../lib/authors";
-import { ingestNewsItems, type IngestResult } from "../../lib/newsIngestion";
+import { ingestNewsItems, type IngestResult, type NewsProvider } from "../../lib/newsIngestion";
 import { gnewsProvider } from "../../lib/newsProviders/gnews";
+import { newsdataProvider } from "../../lib/newsProviders/newsdata";
 import { getAllArticlesAdmin } from "../../lib/articles";
 
+interface ProviderConfig {
+  id: string;
+  provider: NewsProvider;
+  apiKey: string | undefined;
+  setupCommand: string;
+}
+
 const db = env.DB;
+
+const providerConfigs: ProviderConfig[] = [
+  { id: "gnews", provider: gnewsProvider, apiKey: env.NEWS_API_KEY, setupCommand: "wrangler secret put NEWS_API_KEY" },
+  {
+    id: "newsdata",
+    provider: newsdataProvider,
+    apiKey: env.NEWSDATA_API_KEY,
+    setupCommand: "wrangler secret put NEWSDATA_API_KEY",
+  },
+];
+
 let result: IngestResult | null = null;
+let resultProviderName: string | null = null;
 let error: string | null = null;
 
 if (Astro.request.method === "POST") {
-  if (!env.NEWS_API_KEY) {
-    error =
-      "NEWS_API_KEY isn't set. Run `wrangler secret put NEWS_API_KEY` (or add it to .dev.vars locally) with your GNews API key.";
+  const form = await Astro.request.formData();
+  const providerId = String(form.get("providerId") ?? "");
+  const config = providerConfigs.find((c) => c.id === providerId);
+
+  if (!config) {
+    error = "Unknown provider.";
+  } else if (!config.apiKey) {
+    error = `${config.provider.name}'s API key isn't set. Run \`${config.setupCommand}\` (or add it to .dev.vars locally).`;
   } else {
     try {
       const category = await getCategoryBySlug(db, "northeast");
@@ -24,8 +49,9 @@ if (Astro.request.method === "POST") {
       if (!category || !author) {
         error = "Need at least one category and one author before syncing.";
       } else {
-        const items = await gnewsProvider.fetchLatest(env.NEWS_API_KEY);
+        const items = await config.provider.fetchLatest(config.apiKey);
         result = await ingestNewsItems(db, items, category.id, author.id);
+        resultProviderName = config.provider.name;
       }
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
@@ -39,7 +65,7 @@ const wireArticles = (await getAllArticlesAdmin(db)).filter((a) => a.status === 
 <AdminLayout title="News Sync">
   <h1 class="text-headline-lg text-on-surface mb-4">News Sync</h1>
   <p class="text-body-md text-on-surface-variant mb-8 max-w-2xl">
-    Pulls the latest Manipur/Northeast-related stories from {gnewsProvider.name} and adds them as
+    Pulls the latest Manipur/Northeast-related stories from an external provider and adds them as
     <strong>drafts</strong> — nothing is published automatically. Each draft links back to the original source
     rather than copying its full text. Review, rewrite, categorize, and publish each one from the article editor.
   </p>
@@ -48,20 +74,31 @@ const wireArticles = (await getAllArticlesAdmin(db)).filter((a) => a.status === 
   {
     result && (
       <p class="text-body-md text-primary mb-6">
-        Synced: {result.created} new draft{result.created === 1 ? "" : "s"} created, {result.skipped} already existed.
+        Synced via {resultProviderName}: {result.created} new draft{result.created === 1 ? "" : "s"} created,{" "}
+        {result.skipped} already existed.
         {result.errors.length > 0 && ` ${result.errors.length} failed.`}
       </p>
     )
   }
 
-  <form method="POST" class="mb-12">
-    <button
-      type="submit"
-      class="px-6 py-3 bg-primary text-on-primary text-label-caps uppercase tracking-wider rounded-md hover:opacity-90 transition-opacity"
-    >
-      Sync Now
-    </button>
-  </form>
+  <div class="flex flex-wrap gap-4 mb-12">
+    {
+      providerConfigs.map((config) => (
+        <form method="POST">
+          <input type="hidden" name="providerId" value={config.id} />
+          <button
+            type="submit"
+            class="px-6 py-3 bg-primary text-on-primary text-label-caps uppercase tracking-wider rounded-md hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled={!config.apiKey}
+            title={config.apiKey ? undefined : `${config.provider.name} API key not configured`}
+          >
+            Sync from {config.provider.name}
+            {!config.apiKey && " (not configured)"}
+          </button>
+        </form>
+      ))
+    }
+  </div>
 
   <h2 class="text-headline-md text-on-surface mb-4">Drafts Awaiting Review</h2>
   <div class="border border-outline-variant rounded-lg divide-y divide-outline-variant">
