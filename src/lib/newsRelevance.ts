@@ -46,7 +46,15 @@ const SENSITIVE_TERMS = [
   "displaced", "relief camp", "ethnic", "kuki", "meitei", "meetei", "naga", "zomi", "hmar", "zo ",
   "rape", "assault", "abduct", "kidnap", "hostage", "bomb", "ied", "grenade", "explosive", "arrested",
   "arrest", "security forces", "assam rifles", "crpf", "bsf", "army", "weapons", "arms", "looted",
-  "protest", "agitation", "rumour", "rumor", "fake news", "president's rule",
+  "protest", "agitation", "rumour", "rumor", "fake news", "president rule",
+  // Matching is whole-word (plus a plural "s"), so other verb forms and
+  // related words have to be listed explicitly.
+  "killing", "killings", "dies", "casualty", "casualties", "attack", "attacked", "attacker", "gunman",
+  "gunmen", "gun", "gunshot", "shooting", "shootout", "fired", "injured", "injuries", "wounded",
+  "ablaze", "burnt", "burned", "torch", "drone", "rocket", "abducted", "abduction", "kidnapped",
+  "kidnapping", "lynch", "lynched", "missing", "tension", "tense", "unrest", "conflict", "terror",
+  "communal", "tribal", "fled", "flee", "refugee", "myanmar", "border fencing", "free movement regime",
+  "drugs", "narcotics", "poppy", "seized", "recovered", "combing", "search operation", "suicide",
 ];
 
 const CATEGORY_RULES: { slug: string; terms: string[] }[] = [
@@ -61,7 +69,9 @@ const PUBLISH_THRESHOLD = 6; // a Manipur term in the headline
 const REVIEW_THRESHOLD = 3;  // Manipur only in the summary: let an editor decide
 
 function norm(text: string): string {
-  return ` ${text.toLowerCase().replace(/[^a-z0-9' ]+/g, " ").replace(/\s+/g, " ")} `;
+  // Drop possessives so "Manipur's" matches "manipur".
+  const lower = text.toLowerCase().replace(/[’']s\b/g, "");
+  return ` ${lower.replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ")} `;
 }
 
 function has(haystack: string, term: string): boolean {
@@ -104,8 +114,14 @@ export function assessItem(item: NormalizedNewsItem): Assessment {
     };
   }
 
-  if (score < PUBLISH_THRESHOLD) {
+  if (score < PUBLISH_THRESHOLD || titleManipur.length === 0) {
     return { decision: "review", score, categorySlug, reason: "Manipur only mentioned in passing — check relevance" };
+  }
+
+  // "Uttarakhand, UP, Punjab, Goa and Manipur …" names Manipur in the
+  // headline but is a national story; an editor decides if it belongs.
+  if (titleOtherState.length > 0) {
+    return { decision: "review", score, categorySlug, reason: "Headline names other states too — check relevance" };
   }
 
   return { decision: "publish", score, categorySlug, reason: "Auto-published: Manipur story, no sensitive terms" };
