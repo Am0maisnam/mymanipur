@@ -1,6 +1,6 @@
 ---
 import type { Article } from "../lib/articles";
-import { articleHref, estimateReadTime } from "../lib/articles";
+import { articleHref, estimateReadTime, displayImage } from "../lib/articles";
 
 interface Props {
   article: Article;
@@ -13,7 +13,7 @@ const href = articleHref(article);
 <article class="group flex flex-col gap-4">
   <a href={href} class="aspect-[4/3] w-full overflow-hidden rounded-lg bg-surface-container block">
     <img
-      src={article.featuredImageUrl ?? ""}
+      src={displayImage(article)}
       alt={article.imageCaption ?? article.title}
       class="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-85"
     />

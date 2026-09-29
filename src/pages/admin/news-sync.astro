@@ -1,118 +1,156 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import { env } from "cloudflare:workers";
-import { getCategoryBySlug } from "../../lib/categories";
-import { getAuthors } from "../../lib/authors";
-import { ingestNewsItems, type IngestResult, type NewsProvider } from "../../lib/newsIngestion";
-import { gnewsProvider } from "../../lib/newsProviders/gnews";
-import { newsdataProvider } from "../../lib/newsProviders/newsdata";
-import { getAllArticlesAdmin } from "../../lib/articles";
+import {
+  archiveIrrelevantPublishedWire,
+  autoPublishEnabled,
+  getHeldDrafts,
+  getRecentSyncRuns,
+  providerConfigs,
+  runNewsSync,
+  type SyncEnv,
+  type SyncOutcome,
+} from "../../lib/newsSync";
 
-interface ProviderConfig {
-  id: string;
-  provider: NewsProvider;
-  apiKey: string | undefined;
-  setupCommand: string;
-}
-
+const syncEnv = env as unknown as SyncEnv;
 const db = env.DB;
+const configs = providerConfigs(syncEnv);
+const autoPublish = autoPublishEnabled(syncEnv);
 
-const providerConfigs: ProviderConfig[] = [
-  { id: "gnews", provider: gnewsProvider, apiKey: env.NEWS_API_KEY, setupCommand: "wrangler secret put NEWS_API_KEY" },
-  {
-    id: "newsdata",
-    provider: newsdataProvider,
-    apiKey: env.NEWSDATA_API_KEY,
-    setupCommand: "wrangler secret put NEWSDATA_API_KEY",
-  },
-];
-
-let result: IngestResult | null = null;
-let resultProviderName: string | null = null;
+let outcome: SyncOutcome | null = null;
+let recheck: { checked: number; archived: string[] } | null = null;
 let error: string | null = null;
 
 if (Astro.request.method === "POST") {
   const form = await Astro.request.formData();
-  const providerId = String(form.get("providerId") ?? "");
-  const config = providerConfigs.find((c) => c.id === providerId);
-
-  if (!config) {
-    error = "Unknown provider.";
-  } else if (!config.apiKey) {
-    error = `${config.provider.name}'s API key isn't set. Run \`${config.setupCommand}\` (or add it to .dev.vars locally).`;
-  } else {
-    try {
-      const category = await getCategoryBySlug(db, "northeast");
-      const authors = await getAuthors(db);
-      const author = authors.find((a) => a.name === "MyManipur Desk") ?? authors[0];
-
-      if (!category || !author) {
-        error = "Need at least one category and one author before syncing.";
-      } else {
-        const items = await config.provider.fetchLatest(config.apiKey);
-        result = await ingestNewsItems(db, items, category.id, author.id);
-        resultProviderName = config.provider.name;
-      }
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
+  const action = String(form.get("action") ?? "");
+  try {
+    if (action === "recheck") {
+      recheck = await archiveIrrelevantPublishedWire(db);
+    } else {
+      const providerId = String(form.get("providerId") ?? "") || undefined;
+      outcome = await runNewsSync(syncEnv, "manual", providerId);
     }
+  } catch (err) {
+    error = err instanceof Error ? err.message : String(err);
   }
 }
 
-const wireArticles = (await getAllArticlesAdmin(db)).filter((a) => a.status === "draft");
+const runs = await getRecentSyncRuns(db, 10);
+const held = await getHeldDrafts(db);
 ---
 
 <AdminLayout title="News Sync">
-  <h1 class="text-headline-lg text-on-surface mb-4">News Sync</h1>
-  <p class="text-body-md text-on-surface-variant mb-8 max-w-2xl">
-    Pulls the latest Manipur/Northeast-related stories from an external provider and adds them as
-    <strong>drafts</strong> — nothing is published automatically. Each draft links back to the original source
-    rather than copying its full text. Review, rewrite, categorize, and publish each one from the article editor.
-  </p>
+  <h1 class="text-headline-lg text-on-surface mb-4">News Autopilot</h1>
+  <div class="text-body-md text-on-surface-variant mb-8 max-w-3xl space-y-2">
+    <p>
+      Runs automatically every 30 minutes. Each story is checked: <strong>not about Manipur</strong> or a
+      <strong>duplicate</strong> is skipped; anything <strong>sensitive</strong> (violence, communities, security
+      operations, shutdowns) or only loosely relevant is held below for an editor; clear Manipur stories are
+      published with the original source credited and linked.
+    </p>
+    <p>
+      Auto-publish is currently
+      <strong class={autoPublish ? "text-primary" : "text-error"}>{autoPublish ? "ON" : "OFF — everything is held for review"}</strong>
+      (<code>AUTOPUBLISH</code> variable).
+    </p>
+  </div>
 
   {error && <p class="text-body-md text-error mb-6 max-w-2xl">{error}</p>}
   {
-    result && (
+    outcome && (
       <p class="text-body-md text-primary mb-6">
-        Synced via {resultProviderName}: {result.created} new draft{result.created === 1 ? "" : "s"} created,{" "}
-        {result.skipped} already existed.
-        {result.errors.length > 0 && ` ${result.errors.length} failed.`}
+        Fetched {outcome.result.fetched} from {outcome.providersRun.join(", ") || "no provider"}: {outcome.result.published} published,{" "}
+        {outcome.result.heldForReview} held, {outcome.result.skippedIrrelevant} not about Manipur,{" "}
+        {outcome.result.skippedDuplicate} duplicates, {outcome.result.skippedExisting} already had.
+        {outcome.result.errors.length > 0 && ` Errors: ${outcome.result.errors.join("; ")}`}
+      </p>
+    )
+  }
+  {
+    recheck && (
+      <p class="text-body-md text-primary mb-6">
+        Checked {recheck.checked} published wire stories, archived {recheck.archived.length}
+        {recheck.archived.length > 0 && `: ${recheck.archived.join(" · ")}`}
       </p>
     )
   }
 
   <div class="flex flex-wrap gap-4 mb-12">
     {
-      providerConfigs.map((config) => (
+      configs.map((config) => (
         <form method="POST">
+          <input type="hidden" name="action" value="sync" />
           <input type="hidden" name="providerId" value={config.id} />
           <button
             type="submit"
             class="px-6 py-3 bg-primary text-on-primary text-label-caps uppercase tracking-wider rounded-md hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
             disabled={!config.apiKey}
-            title={config.apiKey ? undefined : `${config.provider.name} API key not configured`}
+            title={config.apiKey ? undefined : `Run: ${config.setupCommand}`}
           >
-            Sync from {config.provider.name}
+            Sync now: {config.provider.name}
             {!config.apiKey && " (not configured)"}
           </button>
         </form>
       ))
     }
+    <form method="POST">
+      <input type="hidden" name="action" value="recheck" />
+      <button
+        type="submit"
+        class="px-6 py-3 border border-primary text-primary text-label-caps uppercase tracking-wider rounded-md hover:bg-primary hover:text-on-primary transition-colors"
+      >
+        Archive off-topic published stories
+      </button>
+    </form>
   </div>
 
-  <h2 class="text-headline-md text-on-surface mb-4">Drafts Awaiting Review</h2>
-  <div class="border border-outline-variant rounded-lg divide-y divide-outline-variant">
+  <h2 class="text-headline-md text-on-surface mb-4">Held for review ({held.length})</h2>
+  <div class="border border-outline-variant rounded-lg divide-y divide-outline-variant mb-12">
     {
-      wireArticles.map((article) => (
+      held.map((article) => (
         <a
           href={`/admin/articles/${article.id}/edit`}
-          class="flex items-center justify-between p-4 hover:bg-surface-container-low transition-colors"
+          class="flex flex-col gap-1 p-4 hover:bg-surface-container-low transition-colors"
         >
           <p class="text-body-md text-on-surface">{article.title}</p>
-          <span class="text-metadata text-on-surface-variant">{article.categoryName}</span>
+          <p class="text-metadata text-on-surface-variant">
+            {article.source ?? "Unknown source"} · {article.categoryName} · {article.reviewReason ?? "Needs review"}
+          </p>
         </a>
       ))
     }
-    {wireArticles.length === 0 && <p class="p-4 text-body-md text-on-surface-variant">No drafts waiting.</p>}
+    {held.length === 0 && <p class="p-4 text-body-md text-on-surface-variant">Nothing waiting.</p>}
+  </div>
+
+  <h2 class="text-headline-md text-on-surface mb-4">Recent runs</h2>
+  <div class="overflow-x-auto">
+    <table class="w-full text-metadata text-on-surface">
+      <thead>
+        <tr class="text-left text-on-surface-variant border-b border-outline-variant">
+          <th class="py-2 pr-4">When (UTC)</th><th class="pr-4">Trigger</th><th class="pr-4">Providers</th>
+          <th class="pr-4">Fetched</th><th class="pr-4">Published</th><th class="pr-4">Held</th><th class="pr-4">Skipped</th><th>Errors</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          runs.map((run) => (
+            <tr class="border-b border-outline-variant/50 align-top">
+              <td class="py-2 pr-4 whitespace-nowrap">{run.ranAt}</td>
+              <td class="pr-4">{run.trigger}</td>
+              <td class="pr-4">{run.providers || "—"}</td>
+              <td class="pr-4">{run.fetched}</td>
+              <td class="pr-4">{run.published}</td>
+              <td class="pr-4">{run.held}</td>
+              <td class="pr-4">{run.skipped}</td>
+              <td class="text-error">{run.errors ?? ""}</td>
+            </tr>
+          ))
+        }
+        {runs.length === 0 && (
+          <tr><td colspan="8" class="py-4 text-on-surface-variant">No runs recorded yet.</td></tr>
+        )}
+      </tbody>
+    </table>
   </div>
 </AdminLayout>

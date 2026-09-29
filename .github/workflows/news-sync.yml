@@ -1,0 +1,39 @@
+name: News autopilot
+
+# Pulls Manipur news every 30 minutes. Free-tier budget check: 48 runs/day
+# = 48 GNews requests (limit 100/day) and 48 NewsData requests (limit
+# 200 credits/day). If the run fails (providers down, keys missing, or
+# nothing published for 48h), GitHub emails the repo owner.
+#
+# Needs repo secret CRON_SECRET (same value as the Cloudflare secret).
+# The JSON content type matters: Astro's origin check rejects bodiless or
+# form-encoded cross-site POSTs with a 403.
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: news-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger sync
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ vars.SITE_URL || 'https://mymanipur.com' }}
+        run: |
+          status=$(curl -sS -o response.json -w "%{http_code}" \
+            -X POST "$SITE_URL/api/cron/news-sync" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+          cat response.json
+          echo
+          echo "HTTP $status"
+          test "$status" = "200"

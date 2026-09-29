@@ -7,15 +7,16 @@ import HeroArticle from "../components/HeroArticle.astro";
 import ArticleCard from "../components/ArticleCard.astro";
 import LiveUpdatesFeed from "../components/LiveUpdatesFeed.astro";
 import ImpactSection from "../components/ImpactSection.astro";
-import { liveUpdates } from "../data/liveUpdates";
 import { getFeaturedArticle, getLatestArticles, getBreakingArticle, getImpactArticles, articleHref } from "../lib/articles";
 import { env } from "cloudflare:workers";
 
 const db = env.DB;
 
 const featuredArticle = await getFeaturedArticle(db);
-const latest = await getLatestArticles(db, 10);
-const topStories = latest.filter((a) => a.slug !== featuredArticle?.slug).slice(0, 2);
+const latest = await getLatestArticles(db, 16);
+const rest = latest.filter((a) => a.id !== featuredArticle?.id);
+const topStories = rest.slice(0, 4);
+const latestUpdates = rest.slice(4, 12);
 const breakingArticle = await getBreakingArticle(db);
 const impactArticles = await getImpactArticles(db);
 ---
@@ -32,7 +33,7 @@ const impactArticles = await getImpactArticles(db);
         <div class="lg:col-span-8 flex flex-col gap-12">
           <div class="flex items-center justify-between pb-4 border-b-2 border-primary">
             <h2 class="text-headline-lg text-on-surface">Top Stories</h2>
-            <a href="#" class="text-metadata text-primary hover:underline underline-offset-4 flex items-center gap-1">
+            <a href="/manipur" class="text-metadata text-primary hover:underline underline-offset-4 flex items-center gap-1">
               View All
               <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
             </a>
@@ -42,23 +43,9 @@ const impactArticles = await getImpactArticles(db);
             {topStories.map((article) => <ArticleCard article={article} />)}
           </div>
 
-          <div class="w-full mt-8 p-8 bg-surface-container-low rounded-xl flex items-center gap-8 group cursor-pointer hover:bg-surface-container transition-colors duration-300">
-            <div class="w-24 h-24 shrink-0 flex items-center justify-center rounded-full bg-primary text-on-primary">
-              <span class="material-symbols-outlined text-[48px] transition-transform duration-500 group-hover:rotate-12">
-                download
-              </span>
-            </div>
-            <div>
-              <h3 class="text-headline-md text-on-surface mb-2">Download the Monthly Civic Report</h3>
-              <p class="text-body-md text-on-surface-variant max-w-xl">
-                Deep dive into the latest policy changes affecting infrastructure and local businesses across the
-                valley.
-              </p>
-            </div>
-          </div>
         </div>
 
-        <LiveUpdatesFeed updates={liveUpdates} />
+        <LiveUpdatesFeed articles={latestUpdates.length > 0 ? latestUpdates : rest.slice(0, 8)} />
       </div>
     </section>
 
