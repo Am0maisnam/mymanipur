@@ -11,6 +11,26 @@ export function escapeHtml(text: string): string {
     .replace(/'/g, "&#39;");
 }
 
+export function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&"); // last, so "&amp;lt;" decodes to "&lt;", not "<"
+}
+
+// Inverse of plainTextToHtml, for loading stored HTML back into the editor's
+// plain-text textarea. Previously only <p>/<br> were stripped and entities
+// were left escaped, so every save escaped the body one more time.
+export function htmlToPlainText(html: string): string {
+  const withBreaks = html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>\s*<p[^>]*>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "");
+  return decodeHtmlEntities(withBreaks).trim();
+}
+
 export function plainTextToHtml(text: string): string {
   return text
     .split(/\n\s*\n/)

@@ -26,5 +26,8 @@
   // secret — it's meant to be embedded in every page's HTML.
   "vars": {
     "ADSENSE_CLIENT_ID": "ca-pub-9002721516543448"
+    // News autopilot runs in full-auto mode by default. To switch to editor
+    // mode (every story waits as a draft), add: "AUTOPUBLISH": "false"
+    // — or set AUTOPUBLISH=false as a Pages environment variable.
   }
 }

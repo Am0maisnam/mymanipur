@@ -1,18 +1,32 @@
 ---
-import type { LiveUpdate } from "../data/liveUpdates";
+// Real latest headlines from the database. This replaced a hardcoded list of
+// sample "live updates" that was being shown to readers as if it were news.
+import type { Article } from "../lib/articles";
+import { articleHref } from "../lib/articles";
 
 interface Props {
-  updates: LiveUpdate[];
+  articles: Article[];
 }
 
-const { updates } = Astro.props;
+const { articles } = Astro.props;
+const updates = articles.map((a) => ({
+  href: articleHref(a),
+  text: a.title,
+  time: new Date(a.publishedAt).toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  }),
+}));
 ---
 
 <aside class="lg:col-span-4 mt-12 lg:mt-0 flex flex-col">
   <div class="sticky top-24 bg-surface-container-lowest p-6 rounded-xl shadow-md border border-outline-variant/30 flex flex-col max-h-[calc(100vh-8rem)]">
     <div class="flex items-center gap-3 mb-6 pb-4 border-b border-outline-variant/50">
       <div class="w-3 h-3 rounded-full bg-accent animate-pulse"></div>
-      <h3 class="text-label-caps text-on-surface uppercase tracking-widest">Live Updates</h3>
+      <h3 class="text-label-caps text-on-surface uppercase tracking-widest">Latest Updates</h3>
     </div>
     <div class="flex-1 overflow-y-auto pr-4 space-y-6 custom-scrollbar">
       {
@@ -23,19 +37,19 @@ const { updates } = Astro.props;
               <div class="absolute left-[2.5px] top-3 bottom-[-24px] w-px bg-outline-variant/30" />
             )}
             <div class="text-[11px] text-on-surface-variant font-medium tracking-wider mb-1">{update.time}</div>
-            <p class="text-body-md text-on-surface group-hover:text-primary transition-colors leading-snug">
+            <a href={update.href} class="block text-body-md text-on-surface group-hover:text-primary transition-colors leading-snug">
               {update.text}
-            </p>
+            </a>
           </div>
         ))
       }
     </div>
-    <button
-      type="button"
-      class="w-full mt-6 py-3 px-4 bg-transparent border border-primary text-primary text-label-caps hover:bg-primary hover:text-on-primary transition-colors rounded-md tracking-wider"
+    <a
+      href="/manipur"
+      class="block text-center w-full mt-6 py-3 px-4 bg-transparent border border-primary text-primary text-label-caps hover:bg-primary hover:text-on-primary transition-colors rounded-md tracking-wider"
     >
-      Load More Updates
-    </button>
+      More Manipur News
+    </a>
   </div>
 </aside>
 

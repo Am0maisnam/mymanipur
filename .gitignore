@@ -30,3 +30,6 @@ pnpm-debug.log*
 
 # local Claude Code permission settings (machine/session-specific)
 .claude/settings.local.json
+
+# Production D1 exports (wrangler d1 export) — never commit
+backup-*.sql

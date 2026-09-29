@@ -2,6 +2,8 @@
 // `articles` table) instead of the static placeholder data used before
 // Phase 4. Pages call these functions and never touch D1 directly.
 
+import { htmlToPlainText } from "./content";
+
 export interface Article {
   id: number;
   title: string;
@@ -19,6 +21,11 @@ export interface Article {
   tags: string[];
   /** Editor-written "how this affects Manipur" note; null for most articles. */
   localImpactSummary: string | null;
+  /** Original publisher for wire stories; null for our own reporting. */
+  source: string | null;
+  sourceUrl: string | null;
+  /** Set when autopilot published a sensitive story from a trusted outlet. */
+  sensitive: boolean;
 }
 
 interface ArticleRow {
@@ -37,6 +44,9 @@ interface ArticleRow {
   publishedAt: string;
   tagsRaw: string | null;
   localImpactSummary: string | null;
+  source: string | null;
+  sourceUrl: string | null;
+  reviewReason: string | null;
 }
 
 const SELECT_ARTICLE = `
@@ -52,6 +62,9 @@ const SELECT_ARTICLE = `
     a.is_breaking AS isBreaking,
     a.published_at AS publishedAt,
     a.local_impact_summary AS localImpactSummary,
+    a.source AS source,
+    a.source_url AS sourceUrl,
+    a.review_reason AS reviewReason,
     (
       SELECT GROUP_CONCAT(t.name, '|')
       FROM article_tags at2 JOIN tags t ON t.id = at2.tag_id
@@ -79,7 +92,24 @@ function mapRow(row: ArticleRow): Article {
     publishedAt: row.publishedAt,
     tags: row.tagsRaw ? row.tagsRaw.split("|") : [],
     localImpactSummary: row.localImpactSummary,
+    source: row.source,
+    sourceUrl: row.sourceUrl,
+    sensitive: (row.reviewReason ?? "").startsWith("Sensitive:"),
   };
+}
+
+// Our CSP only allows same-origin images, and publisher photos aren't ours
+// to reuse, so anything external (or missing) falls back to our own art.
+const FALLBACK_IMAGES: Record<string, string> = {
+  politics: "/images/governance-assembly.png",
+  culture: "/images/sangai-festival.png",
+  entertainment: "/images/sangai-festival.png",
+};
+
+export function displayImage(article: Pick<Article, "featuredImageUrl" | "categorySlug">): string {
+  const url = article.featuredImageUrl;
+  if (url && url.startsWith("/")) return url;
+  return FALLBACK_IMAGES[article.categorySlug] ?? "/images/hero-imphal-valley.png";
 }
 
 export async function getLatestArticles(db: D1Database, limit = 10): Promise<Article[]> {
@@ -93,7 +123,11 @@ export async function getLatestArticles(db: D1Database, limit = 10): Promise<Art
 export async function getFeaturedArticle(db: D1Database): Promise<Article | null> {
   const row = await db
     .prepare(
-      `${SELECT_ARTICLE} WHERE a.status = 'published' AND a.is_featured = 1 ORDER BY a.published_at DESC LIMIT 1`
+      // A pinned story stops being the hero after 2 days, otherwise the
+      // homepage looks frozen even while the autopilot is publishing.
+      `${SELECT_ARTICLE} WHERE a.status = 'published' AND a.is_featured = 1
+        AND julianday(a.published_at) >= julianday('now', '-2 days')
+        ORDER BY a.published_at DESC LIMIT 1`
     )
     .first<ArticleRow>();
   if (row) return mapRow(row);
@@ -105,7 +139,10 @@ export async function getFeaturedArticle(db: D1Database): Promise<Article | null
 export async function getBreakingArticle(db: D1Database): Promise<Article | null> {
   const row = await db
     .prepare(
-      `${SELECT_ARTICLE} WHERE a.status = 'published' AND a.is_breaking = 1 ORDER BY a.published_at DESC LIMIT 1`
+      // "Breaking" expires after 24 hours.
+      `${SELECT_ARTICLE} WHERE a.status = 'published' AND a.is_breaking = 1
+        AND julianday(a.published_at) >= julianday('now', '-1 day')
+        ORDER BY a.published_at DESC LIMIT 1`
     )
     .first<ArticleRow>();
   return row ? mapRow(row) : null;
@@ -293,7 +330,7 @@ export async function getArticleForEdit(db: D1Database, id: number): Promise<Art
     slug: row.slug,
     excerpt: row.excerpt,
     // Editor works in plain text; strip the tags back out for the textarea.
-    contentText: row.contentHtml.replace(/<br\s*\/?>/g, "\n").replace(/<\/p>\s*<p>/g, "\n\n").replace(/<\/?p>/g, ""),
+    contentText: htmlToPlainText(row.contentHtml),
     featuredImageUrl: row.featuredImageUrl,
     imageCaption: row.imageCaption,
     authorId: row.authorId,

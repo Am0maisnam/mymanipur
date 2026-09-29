@@ -1,13 +1,22 @@
 // External news ingestion, per PROJECT_PLAN.md section 9.
 //
-// Design intent: external providers are swappable (one adapter per
-// provider implementing NewsProvider), and ingested items land as DRAFT
-// articles for an editor to review, expand, and categorize before they go
-// live — never auto-published, and never storing a full copy of the
-// source article's body (copyright). We only keep what the brief allows:
-// headline, source, source URL, thumbnail, short excerpt, publish time.
+// Providers are swappable (one adapter per provider implementing
+// NewsProvider). Each item is assessed by newsRelevance.ts. Two modes:
+//
+// Full autopilot (default; AUTOPUBLISH unset or anything but "false"):
+//   nobody reviews, so every item is either published or skipped —
+//   see autopilotDecision(). Sensitive stories publish only from trusted
+//   outlets and are marked so the article page shows a sourcing notice.
+//
+// Editor mode (AUTOPUBLISH="false"): clear, non-sensitive stories are held
+// as drafts too, and sensitive/weak ones are held with a reason.
+//
+// We never store the source's full body (copyright) or hotlink its image
+// (the site's CSP blocks third-party images anyway, and the image rights
+// belong to the publisher). We keep: headline, source, link, short excerpt.
 
-import { escapeHtml, slugify } from "./content";
+import { escapeHtml, htmlToPlainText, slugify } from "./content";
+import { assessItem, autopilotDecision, isDuplicate, titleTokens } from "./newsRelevance";
 
 export interface NormalizedNewsItem {
   title: string;
@@ -25,74 +34,151 @@ export interface NewsProvider {
 }
 
 export interface IngestResult {
-  created: number;
-  skipped: number;
+  fetched: number;
+  published: number;
+  heldForReview: number;
+  skippedIrrelevant: number;
+  skippedDuplicate: number;
+  skippedExisting: number;
   errors: string[];
 }
 
-function wireContentHtml(item: NormalizedNewsItem): string {
-  return `<p>${escapeHtml(item.excerpt)}</p><p><a href="${item.sourceUrl}" rel="noopener noreferrer" target="_blank">Read the full story at ${escapeHtml(item.sourceName)}</a></p>`;
+export interface IngestOptions {
+  autoPublish: boolean;
+  deskAuthorId: number;
+  categoryIds: Map<string, number>;
+  fallbackCategoryId: number;
 }
 
-/**
- * Inserts normalized news items as draft articles, skipping any whose
- * external_article_id already exists (idempotent re-sync). Category/author
- * are assigned a sensible default — an editor reassigns before publishing.
- */
+export function emptyResult(): IngestResult {
+  return {
+    fetched: 0,
+    published: 0,
+    heldForReview: 0,
+    skippedIrrelevant: 0,
+    skippedDuplicate: 0,
+    skippedExisting: 0,
+    errors: [],
+  };
+}
+
+// Body is only the excerpt. The source link is rendered by the article
+// template from the source/source_url columns — never stored as HTML, which
+// is what caused the "&amp;amp;lt;a href" text on live articles (each edit
+// re-escaped the stored <a> tag).
+export function wireContentHtml(excerpt: string): string {
+  return excerpt ? `<p>${escapeHtml(excerpt)}</p>` : "";
+}
+
+function cleanTitle(title: string): string {
+  // Wire prefixes like "India News | " or "Manipur: " add nothing.
+  return title.replace(/^(india news|latest news|news)\s*\|\s*/i, "").trim();
+}
+
+async function recentTitleTokens(db: D1Database): Promise<Set<string>[]> {
+  const { results } = await db
+    .prepare("SELECT title FROM articles WHERE created_at >= datetime('now', '-3 days')")
+    .all<{ title: string }>();
+  return results.map((r) => titleTokens(r.title));
+}
+
+async function uniqueSlug(db: D1Database, categoryId: number, title: string, externalId: string): Promise<string> {
+  const baseSlug = slugify(title).slice(0, 90).replace(/-+$/, "") || `wire-story-${slugify(externalId).slice(0, 40)}`;
+  let slug = baseSlug;
+  let suffix = 1;
+  while (
+    await db.prepare("SELECT id FROM articles WHERE category_id = ? AND slug = ?").bind(categoryId, slug).first()
+  ) {
+    slug = `${baseSlug}-${++suffix}`;
+  }
+  return slug;
+}
+
 export async function ingestNewsItems(
   db: D1Database,
   items: NormalizedNewsItem[],
-  defaultCategoryId: number,
-  defaultAuthorId: number
+  options: IngestOptions,
+  result: IngestResult = emptyResult()
 ): Promise<IngestResult> {
-  const result: IngestResult = { created: 0, skipped: 0, errors: [] };
+  const recent = await recentTitleTokens(db);
+  result.fetched += items.length;
 
-  for (const item of items) {
+  for (const raw of items) {
+    // Providers sometimes send HTML/entities in titles and descriptions.
+    const item = {
+      ...raw,
+      title: cleanTitle(htmlToPlainText(raw.title)),
+      excerpt: htmlToPlainText(raw.excerpt).slice(0, 400),
+    };
     try {
-      const existing = await db
-        .prepare("SELECT id FROM articles WHERE external_article_id = ?")
-        .bind(item.externalId)
-        .first<{ id: number }>();
-
-      if (existing) {
-        result.skipped++;
+      if (!item.title || !item.sourceUrl) {
+        result.skippedIrrelevant++;
         continue;
       }
 
-      const baseSlug = slugify(item.title) || `wire-story-${item.externalId}`;
-      let slug = baseSlug;
-      let suffix = 1;
-      // Slugs are unique per-category, not globally — check within the target category.
-      while (
-        await db
-          .prepare("SELECT id FROM articles WHERE category_id = ? AND slug = ?")
-          .bind(defaultCategoryId, slug)
-          .first()
-      ) {
-        slug = `${baseSlug}-${++suffix}`;
+      const existing = await db
+        .prepare("SELECT id FROM articles WHERE external_article_id = ? OR source_url = ?")
+        .bind(item.externalId, item.sourceUrl)
+        .first<{ id: number }>();
+      if (existing) {
+        result.skippedExisting++;
+        continue;
       }
+
+      const assessment = assessItem(item);
+      const auto = autopilotDecision(assessment);
+      if (options.autoPublish ? auto.decision === "skip" : assessment.decision === "skip") {
+        result.skippedIrrelevant++;
+        continue;
+      }
+
+      const tokens = titleTokens(item.title);
+      if (isDuplicate(tokens, recent)) {
+        result.skippedDuplicate++;
+        continue;
+      }
+
+      const decision = options.autoPublish ? "publish" : "review";
+      // In autopilot, review_reason carries the "Sensitive: …" marker the
+      // article page uses to show a sourcing notice; null otherwise.
+      const reviewReason = options.autoPublish
+        ? auto.sensitive
+          ? auto.reason
+          : null
+        : assessment.decision === "publish"
+          ? "Editor mode (AUTOPUBLISH=false): approve to publish"
+          : assessment.reason;
+
+      const categoryId = options.categoryIds.get(assessment.categorySlug) ?? options.fallbackCategoryId;
+      const slug = await uniqueSlug(db, categoryId, item.title, item.externalId);
 
       await db
         .prepare(
           `INSERT INTO articles
             (title, slug, excerpt, content_html, featured_image_url, author_id, category_id,
-             status, source, source_url, external_article_id, published_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, NULL)`
+             status, source, source_url, external_article_id, published_at, ingest_score, review_reason)
+           VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
           item.title,
           slug,
           item.excerpt,
-          wireContentHtml(item),
-          item.imageUrl,
-          defaultAuthorId,
-          defaultCategoryId,
+          wireContentHtml(item.excerpt),
+          options.deskAuthorId,
+          categoryId,
+          decision === "publish" ? "published" : "draft",
           item.sourceName,
           item.sourceUrl,
-          item.externalId
+          item.externalId,
+          decision === "publish" ? new Date().toISOString() : null,
+          assessment.score,
+          reviewReason
         )
         .run();
-      result.created++;
+
+      recent.push(tokens);
+      if (decision === "publish") result.published++;
+      else result.heldForReview++;
     } catch (err) {
       result.errors.push(`${item.title}: ${err instanceof Error ? err.message : String(err)}`);
     }

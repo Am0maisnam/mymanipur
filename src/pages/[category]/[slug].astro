@@ -4,7 +4,7 @@ import Header from "../../components/Header.astro";
 import Footer from "../../components/Footer.astro";
 import ArticleCard from "../../components/ArticleCard.astro";
 import ImpactCallout from "../../components/ImpactCallout.astro";
-import { getArticleBySlug, getRelatedArticles, estimateReadTime, formatPublished } from "../../lib/articles";
+import { getArticleBySlug, getRelatedArticles, estimateReadTime, displayImage } from "../../lib/articles";
 import { safeJsonLd } from "../../lib/content";
 import { env } from "cloudflare:workers";
 
@@ -25,19 +25,24 @@ const publishedLabel = new Date(article.publishedAt).toLocaleDateString("en-US",
 });
 
 const canonicalUrl = new URL(`/${article.categorySlug}/${article.slug}`, Astro.url.origin).toString();
-const imageUrl = article.featuredImageUrl
-  ? new URL(article.featuredImageUrl, Astro.url.origin).toString()
-  : undefined;
+// Only our own (same-origin) images are shown in the body; the OG/JSON-LD
+// image always resolves to something we're allowed to use.
+const ownImage = article.featuredImageUrl?.startsWith("/") ? article.featuredImageUrl : null;
+const imageUrl = new URL(displayImage(article), Astro.url.origin).toString();
+const isWire = Boolean(article.source && article.sourceUrl);
 
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "NewsArticle",
   headline: article.title,
   description: article.excerpt,
-  image: imageUrl ? [imageUrl] : undefined,
+  image: [imageUrl],
   datePublished: article.publishedAt,
   dateModified: article.publishedAt,
-  author: { "@type": "Person", name: article.authorName },
+  author: isWire
+    ? { "@type": "Organization", name: article.source }
+    : { "@type": "Person", name: article.authorName },
+  isBasedOn: isWire ? article.sourceUrl : undefined,
   publisher: {
     "@type": "Organization",
     name: "MyManipur",
@@ -52,7 +57,7 @@ const jsonLd = {
 <BaseLayout
   title={article.title}
   description={article.excerpt}
-  image={article.featuredImageUrl ?? undefined}
+  image={displayImage(article)}
   type="article"
   publishedTime={article.publishedAt}
 >
@@ -79,7 +84,7 @@ const jsonLd = {
         <div class="flex flex-wrap items-center gap-4 text-on-surface-variant text-metadata pb-8 mb-8 border-b border-outline-variant">
           <span class="flex items-center gap-1.5">
             <span class="material-symbols-outlined text-[16px]">edit</span>
-            {article.authorName}
+            {isWire ? `Source: ${article.source}` : article.authorName}
           </span>
           <span class="w-1 h-1 rounded-full bg-outline-variant"></span>
           <span class="flex items-center gap-1.5">
@@ -94,11 +99,11 @@ const jsonLd = {
         </div>
       </div>
 
-      {article.featuredImageUrl && (
+      {ownImage && (
         <div class="max-w-3xl mx-auto mb-10">
           <figure>
             <img
-              src={article.featuredImageUrl}
+              src={ownImage}
               alt={article.imageCaption ?? article.title}
               class="w-full aspect-[16/9] object-cover rounded-xl"
             />
@@ -116,6 +121,26 @@ const jsonLd = {
       )}
 
       <div class="max-w-3xl mx-auto text-body-lg text-on-surface space-y-6" set:html={article.contentHtml} />
+
+      {
+        isWire && (
+          <div class="max-w-3xl mx-auto mt-8 p-5 rounded-lg border border-outline-variant bg-surface-container-low">
+            <p class="text-metadata text-on-surface-variant mb-2">
+              This is a summary. The original report is by <strong>{article.source}</strong>.
+              {article.sensitive &&
+                " This is a sensitive or developing story; details are as reported by the source and have not been independently verified by MyManipur. Read the full report for context."}
+            </p>
+            <a
+              href={article.sourceUrl}
+              rel="noopener noreferrer nofollow"
+              target="_blank"
+              class="text-body-md text-primary underline underline-offset-4 hover:opacity-80"
+            >
+              Read the full story at {article.source}
+            </a>
+          </div>
+        )
+      }
 
       {article.tags.length > 0 && (
         <div class="max-w-3xl mx-auto flex flex-wrap gap-2 mt-10">
