@@ -11,10 +11,39 @@ import type { NormalizedNewsItem } from "./newsIngestion";
 export type Decision = "publish" | "review" | "skip";
 
 export interface Assessment {
+  /** Decision when a human editor reviews held stories (AUTOPUBLISH=false). */
   decision: Decision;
   score: number;
   categorySlug: string;
   reason: string;
+  sensitiveTerms: string[];
+  trustedSource: boolean;
+  /** Why the story is only loosely about Manipur; null if it clearly is. */
+  weakRelevance: string | null;
+}
+
+// Established outlets whose reporting on sensitive events (violence, ethnic
+// tensions, security operations) is published unattended in full-autopilot
+// mode — as the outlet's own headline + summary + link, credited to them.
+// Sensitive stories from anyone else are skipped, because nobody reviews.
+// Edit this list deliberately; it is the main editorial control.
+export const TRUSTED_DOMAINS = [
+  // Manipur / Northeast outlets
+  "ifp.co.in", "thesangaiexpress.com", "e-pao.net", "nenow.in", "ukhrultimes.com", "eastmojo.com",
+  "thenortheasttoday.com", "sentinelassam.com", "arunachaltimes.in", "nagalandpost.com", "morungexpress.com",
+  // National dailies, broadcasters and wires
+  "thehindu.com", "indianexpress.com", "hindustantimes.com", "timesofindia.indiatimes.com", "ndtv.com",
+  "newindianexpress.com", "deccanherald.com", "livemint.com", "business-standard.com", "theprint.in",
+  "scroll.in", "indiatoday.in", "ptinews.com", "aninews.in", "pib.gov.in", "manipur.gov.in",
+];
+
+export function isTrustedSource(sourceUrl: string): boolean {
+  try {
+    const host = new URL(sourceUrl).hostname.replace(/^www\./, "").toLowerCase();
+    return TRUSTED_DOMAINS.some((d) => host === d || host.endsWith(`.${d}`));
+  } catch {
+    return false;
+  }
 }
 
 // Terms that make a story specifically about Manipur. Community names are
@@ -99,32 +128,52 @@ export function assessItem(item: NormalizedNewsItem): Assessment {
   if (titleOtherState.length > 0 && titleManipur.length === 0) score -= 4;
 
   const categorySlug = guessCategory(title, all);
+  const sensitiveTerms = matches(all, SENSITIVE_TERMS).map((t) => t.trim());
+  const trustedSource = isTrustedSource(item.sourceUrl);
+  // Named in the headline is required to publish. "Uttarakhand, UP, Punjab,
+  // Goa and Manipur …" names Manipur but is a national story.
+  const weakRelevance =
+    score < PUBLISH_THRESHOLD || titleManipur.length === 0
+      ? "Manipur only mentioned in passing"
+      : titleOtherState.length > 0
+        ? "Headline names other states too"
+        : null;
+  const base = { score, categorySlug, sensitiveTerms, trustedSource, weakRelevance };
 
   if (score < REVIEW_THRESHOLD) {
-    return { decision: "skip", score, categorySlug, reason: "Not about Manipur" };
+    return { ...base, decision: "skip", reason: "Not about Manipur" };
   }
 
-  const sensitive = matches(all, SENSITIVE_TERMS);
-  if (sensitive.length > 0) {
+  if (sensitiveTerms.length > 0) {
     return {
+      ...base,
       decision: "review",
-      score,
-      categorySlug,
-      reason: `Sensitive topic — needs an editor (${sensitive.slice(0, 3).map((s) => s.trim()).join(", ")})`,
+      reason: `Sensitive topic — needs an editor (${sensitiveTerms.slice(0, 3).join(", ")})`,
     };
   }
 
-  if (score < PUBLISH_THRESHOLD || titleManipur.length === 0) {
-    return { decision: "review", score, categorySlug, reason: "Manipur only mentioned in passing — check relevance" };
+  if (weakRelevance) {
+    return { ...base, decision: "review", reason: `${weakRelevance} — check relevance` };
   }
 
-  // "Uttarakhand, UP, Punjab, Goa and Manipur …" names Manipur in the
-  // headline but is a national story; an editor decides if it belongs.
-  if (titleOtherState.length > 0) {
-    return { decision: "review", score, categorySlug, reason: "Headline names other states too — check relevance" };
-  }
+  return { ...base, decision: "publish", reason: "Auto-published: Manipur story, no sensitive terms" };
+}
 
-  return { decision: "publish", score, categorySlug, reason: "Auto-published: Manipur story, no sensitive terms" };
+/**
+ * Full-autopilot decision (no human reviews anything):
+ *  - clear Manipur story, nothing sensitive           -> publish
+ *  - clear Manipur story, sensitive, trusted outlet   -> publish, marked sensitive
+ *  - anything else (weak relevance, untrusted + sensitive) -> skip
+ */
+export function autopilotDecision(a: Assessment): { decision: "publish" | "skip"; sensitive: boolean; reason: string } {
+  if (a.score < REVIEW_THRESHOLD) return { decision: "skip", sensitive: false, reason: "Not about Manipur" };
+  if (a.weakRelevance) return { decision: "skip", sensitive: false, reason: a.weakRelevance };
+  if (a.sensitiveTerms.length > 0) {
+    return a.trustedSource
+      ? { decision: "publish", sensitive: true, reason: `Sensitive: ${a.sensitiveTerms.slice(0, 3).join(", ")}` }
+      : { decision: "skip", sensitive: true, reason: "Sensitive story from a source not on the trusted list" };
+  }
+  return { decision: "publish", sensitive: false, reason: "Clear Manipur story" };
 }
 
 function guessCategory(title: string, all: string): string {

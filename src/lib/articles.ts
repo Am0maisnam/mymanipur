@@ -24,6 +24,8 @@ export interface Article {
   /** Original publisher for wire stories; null for our own reporting. */
   source: string | null;
   sourceUrl: string | null;
+  /** Set when autopilot published a sensitive story from a trusted outlet. */
+  sensitive: boolean;
 }
 
 interface ArticleRow {
@@ -44,6 +46,7 @@ interface ArticleRow {
   localImpactSummary: string | null;
   source: string | null;
   sourceUrl: string | null;
+  reviewReason: string | null;
 }
 
 const SELECT_ARTICLE = `
@@ -61,6 +64,7 @@ const SELECT_ARTICLE = `
     a.local_impact_summary AS localImpactSummary,
     a.source AS source,
     a.source_url AS sourceUrl,
+    a.review_reason AS reviewReason,
     (
       SELECT GROUP_CONCAT(t.name, '|')
       FROM article_tags at2 JOIN tags t ON t.id = at2.tag_id
@@ -90,6 +94,7 @@ function mapRow(row: ArticleRow): Article {
     localImpactSummary: row.localImpactSummary,
     source: row.source,
     sourceUrl: row.sourceUrl,
+    sensitive: (row.reviewReason ?? "").startsWith("Sensitive:"),
   };
 }
 

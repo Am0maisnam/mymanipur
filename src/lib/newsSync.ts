@@ -7,6 +7,8 @@ import { getAuthors } from "./authors";
 import { emptyResult, ingestNewsItems, type IngestResult, type NewsProvider } from "./newsIngestion";
 import { gnewsProvider } from "./newsProviders/gnews";
 import { newsdataProvider } from "./newsProviders/newsdata";
+import { rssProvider } from "./newsProviders/rss";
+import { RSS_FEEDS } from "./newsProviders/rssFeeds";
 
 export interface SyncEnv {
   DB: D1Database;
@@ -24,13 +26,18 @@ export interface ProviderConfig {
 
 export function providerConfigs(env: SyncEnv): ProviderConfig[] {
   return [
-    { id: "gnews", provider: gnewsProvider, apiKey: env.NEWS_API_KEY, setupCommand: "wrangler secret put NEWS_API_KEY" },
-    { id: "newsdata", provider: newsdataProvider, apiKey: env.NEWSDATA_API_KEY, setupCommand: "wrangler secret put NEWSDATA_API_KEY" },
+    { id: "gnews", provider: gnewsProvider, apiKey: env.NEWS_API_KEY, setupCommand: "wrangler pages secret put NEWS_API_KEY --project-name mymanipur" },
+    { id: "newsdata", provider: newsdataProvider, apiKey: env.NEWSDATA_API_KEY, setupCommand: "wrangler pages secret put NEWSDATA_API_KEY --project-name mymanipur" },
+    // RSS needs no key; it is "configured" when RSS_FEEDS has entries.
+    { id: "rss", provider: rssProvider, apiKey: RSS_FEEDS.length > 0 ? "rss" : undefined, setupCommand: "add feeds to src/lib/newsProviders/rssFeeds.ts" },
   ];
 }
 
+// Full autopilot is the default. Only an explicit AUTOPUBLISH="false"
+// switches to editor mode. (Defaulting ON also means it works even if
+// Cloudflare Pages ignores the vars block in wrangler.jsonc.)
 export function autoPublishEnabled(env: SyncEnv): boolean {
-  return String(env.AUTOPUBLISH ?? "").toLowerCase() === "true";
+  return String(env.AUTOPUBLISH ?? "").trim().toLowerCase() !== "false";
 }
 
 export interface SyncOutcome {
@@ -145,12 +152,14 @@ export async function getHeldDrafts(db: D1Database, limit = 50): Promise<HeldDra
 }
 
 /**
- * Re-runs the relevance rules over already-published wire stories and
- * archives (never deletes) the ones that aren't about Manipur — e.g. the
- * Uttarakhand Congress story that was on the homepage.
+ * Re-runs the full-autopilot rules over already-published wire stories and
+ * archives (never deletes) everything autopilot would not have published:
+ * off-topic stories (e.g. the Uttarakhand Congress story), stories that
+ * only mention Manipur among other states, and sensitive stories from
+ * outlets not on the trusted list.
  */
 export async function archiveIrrelevantPublishedWire(db: D1Database): Promise<{ checked: number; archived: string[] }> {
-  const { assessItem } = await import("./newsRelevance");
+  const { assessItem, autopilotDecision } = await import("./newsRelevance");
   const { results } = await db
     .prepare(
       `SELECT id, title, excerpt, source, source_url AS sourceUrl, external_article_id AS externalId, published_at AS publishedAt
@@ -169,12 +178,15 @@ export async function archiveIrrelevantPublishedWire(db: D1Database): Promise<{ 
       imageUrl: null,
       publishedAt: row.publishedAt,
     });
-    if (assessment.decision === "skip") {
+    const auto = autopilotDecision(assessment);
+    if (auto.decision === "skip") {
       await db
         .prepare("UPDATE articles SET status = 'archived', review_reason = ?, updated_at = datetime('now') WHERE id = ?")
-        .bind(`Archived by relevance re-check: ${assessment.reason}`, row.id)
+        .bind(`Archived by autopilot re-check: ${auto.reason}`, row.id)
         .run();
       archived.push(row.title);
+    } else if (auto.sensitive) {
+      await db.prepare("UPDATE articles SET review_reason = ? WHERE id = ?").bind(auto.reason, row.id).run();
     }
   }
   return { checked: results.length, archived };

@@ -1,18 +1,22 @@
 // External news ingestion, per PROJECT_PLAN.md section 9.
 //
 // Providers are swappable (one adapter per provider implementing
-// NewsProvider). Each item is assessed by newsRelevance.ts and then:
-//   - skipped      if it isn't about Manipur or duplicates a recent story
-//   - held (draft) if it's sensitive or only loosely relevant — an editor decides
-//   - published    if it's clearly a Manipur story with no sensitive terms
-//                  AND auto-publishing is switched on (AUTOPUBLISH=true)
+// NewsProvider). Each item is assessed by newsRelevance.ts. Two modes:
+//
+// Full autopilot (default; AUTOPUBLISH unset or anything but "false"):
+//   nobody reviews, so every item is either published or skipped —
+//   see autopilotDecision(). Sensitive stories publish only from trusted
+//   outlets and are marked so the article page shows a sourcing notice.
+//
+// Editor mode (AUTOPUBLISH="false"): clear, non-sensitive stories are held
+// as drafts too, and sensitive/weak ones are held with a reason.
 //
 // We never store the source's full body (copyright) or hotlink its image
 // (the site's CSP blocks third-party images anyway, and the image rights
 // belong to the publisher). We keep: headline, source, link, short excerpt.
 
 import { escapeHtml, htmlToPlainText, slugify } from "./content";
-import { assessItem, isDuplicate, titleTokens, type Decision } from "./newsRelevance";
+import { assessItem, autopilotDecision, isDuplicate, titleTokens } from "./newsRelevance";
 
 export interface NormalizedNewsItem {
   title: string;
@@ -122,7 +126,8 @@ export async function ingestNewsItems(
       }
 
       const assessment = assessItem(item);
-      if (assessment.decision === "skip") {
+      const auto = autopilotDecision(assessment);
+      if (options.autoPublish ? auto.decision === "skip" : assessment.decision === "skip") {
         result.skippedIrrelevant++;
         continue;
       }
@@ -133,14 +138,16 @@ export async function ingestNewsItems(
         continue;
       }
 
-      const decision: Decision =
-        assessment.decision === "publish" && options.autoPublish ? "publish" : "review";
-      const reviewReason =
-        decision === "publish"
-          ? null
-          : assessment.decision === "publish"
-            ? "Auto-publish is off (set AUTOPUBLISH=true)"
-            : assessment.reason;
+      const decision = options.autoPublish ? "publish" : "review";
+      // In autopilot, review_reason carries the "Sensitive: …" marker the
+      // article page uses to show a sourcing notice; null otherwise.
+      const reviewReason = options.autoPublish
+        ? auto.sensitive
+          ? auto.reason
+          : null
+        : assessment.decision === "publish"
+          ? "Editor mode (AUTOPUBLISH=false): approve to publish"
+          : assessment.reason;
 
       const categoryId = options.categoryIds.get(assessment.categorySlug) ?? options.fallbackCategoryId;
       const slug = await uniqueSlug(db, categoryId, item.title, item.externalId);

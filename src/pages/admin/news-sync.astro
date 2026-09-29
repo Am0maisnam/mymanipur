@@ -44,15 +44,15 @@ const held = await getHeldDrafts(db);
   <h1 class="text-headline-lg text-on-surface mb-4">News Autopilot</h1>
   <div class="text-body-md text-on-surface-variant mb-8 max-w-3xl space-y-2">
     <p>
-      Runs automatically every 30 minutes. Each story is checked: <strong>not about Manipur</strong> or a
-      <strong>duplicate</strong> is skipped; anything <strong>sensitive</strong> (violence, communities, security
-      operations, shutdowns) or only loosely relevant is held below for an editor; clear Manipur stories are
-      published with the original source credited and linked.
+      Runs automatically every 30 minutes. Stories not about Manipur, duplicates, and loosely related stories are
+      skipped. Clear Manipur stories are published with the original source credited and linked. Sensitive stories
+      (violence, communities, security operations, shutdowns) are published only from trusted outlets, with a
+      sourcing notice; from other outlets they are skipped.
     </p>
     <p>
-      Auto-publish is currently
-      <strong class={autoPublish ? "text-primary" : "text-error"}>{autoPublish ? "ON" : "OFF — everything is held for review"}</strong>
-      (<code>AUTOPUBLISH</code> variable).
+      Mode:
+      <strong class="text-primary">{autoPublish ? "Full autopilot — no review needed" : "Editor mode — every story waits below as a draft"}</strong>
+      (set <code>AUTOPUBLISH=false</code> for editor mode).
     </p>
   </div>
 
@@ -100,7 +100,7 @@ const held = await getHeldDrafts(db);
         type="submit"
         class="px-6 py-3 border border-primary text-primary text-label-caps uppercase tracking-wider rounded-md hover:bg-primary hover:text-on-primary transition-colors"
       >
-        Archive off-topic published stories
+        Re-check published stories
       </button>
     </form>
   </div>

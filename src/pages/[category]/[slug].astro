@@ -127,6 +127,8 @@ const jsonLd = {
           <div class="max-w-3xl mx-auto mt-8 p-5 rounded-lg border border-outline-variant bg-surface-container-low">
             <p class="text-metadata text-on-surface-variant mb-2">
               This is a summary. The original report is by <strong>{article.source}</strong>.
+              {article.sensitive &&
+                " This is a sensitive or developing story; details are as reported by the source and have not been independently verified by MyManipur. Read the full report for context."}
             </p>
             <a
               href={article.sourceUrl}
