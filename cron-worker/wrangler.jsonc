@@ -1,0 +1,17 @@
+{
+  // Tiny scheduler for the MyManipur news autopilot. Lives outside GitHub
+  // Actions so it never gets switched off for repo inactivity.
+  // Deploy: cd cron-worker && npx wrangler deploy --config ./wrangler.jsonc
+  // Secret:  printf "%s" "$CRON_SECRET" | npx wrangler secret put CRON_SECRET --config ./wrangler.jsonc
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "mymanipur-cron",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-26",
+  "triggers": {
+    "crons": ["*/30 * * * *"]
+  },
+  "vars": {
+    "SYNC_URL": "https://mymanipur.com/api/cron/news-sync"
+  },
+  "observability": { "enabled": true }
+}

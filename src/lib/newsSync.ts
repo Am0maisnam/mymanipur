@@ -5,7 +5,6 @@
 import { getCategories } from "./categories";
 import { getAuthors } from "./authors";
 import { emptyResult, ingestNewsItems, type IngestResult, type NewsProvider } from "./newsIngestion";
-import { gnewsProvider } from "./newsProviders/gnews";
 import { newsdataProvider } from "./newsProviders/newsdata";
 import { rssProvider } from "./newsProviders/rss";
 import { RSS_FEEDS } from "./newsProviders/rssFeeds";
@@ -26,7 +25,9 @@ export interface ProviderConfig {
 
 export function providerConfigs(env: SyncEnv): ProviderConfig[] {
   return [
-    { id: "gnews", provider: gnewsProvider, apiKey: env.NEWS_API_KEY, setupCommand: "wrangler pages secret put NEWS_API_KEY --project-name mymanipur" },
+    // GNews is intentionally not wired in: its free tier is reported as
+    // non-commercial, and this site runs ads. The adapter is kept in
+    // newsProviders/gnews.ts in case a paid plan is ever bought.
     { id: "newsdata", provider: newsdataProvider, apiKey: env.NEWSDATA_API_KEY, setupCommand: "wrangler pages secret put NEWSDATA_API_KEY --project-name mymanipur" },
     // RSS needs no key; it is "configured" when RSS_FEEDS has entries.
     { id: "rss", provider: rssProvider, apiKey: RSS_FEEDS.length > 0 ? "rss" : undefined, setupCommand: "add feeds to src/lib/newsProviders/rssFeeds.ts" },
